@@ -861,13 +861,13 @@ const DEFAULT_RULES = [
   // Group: 基本信息
   { id: 'r1', group: '基本信息', name: '合同编号', type: 'regex', pattern: 'HT\\d+', flags: 'i', severity: 'WARN', suggestion: '合同编号格式应为 HT+数字', hint_pass: '合同编号格式正确' },
   { id: 'r2', group: '基本信息', name: '甲方名称', type: 'regex', pattern: '甲\\s*方[：:]\\s*([^\\n]{2,60})', flags: '', severity: 'WARN', suggestion: '甲方名称必须完整填写，请检查合同格式' },
-  { id: 'r3', group: '基本信息', name: '乙方名称（长沙冉星）', type: 'text', pattern: '长沙冉星信息科技|长沙冉星|冉星|问卷星', flags: 'i', severity: 'ERROR', suggestion: '乙方名称应为「长沙冉星信息科技有限公司」' },
+  { id: 'r3', group: '基本信息', name: '乙方名称', type: 'text', pattern: '', flags: 'i', severity: 'ERROR', suggestion: '乙方名称需与公司标准名称一致，请在规则编辑器中配置' },
   { id: 'r7', group: '基本信息', name: '服务金额检测', type: 'regex', pattern: '[¥￥]?\\s*([\\d,]+\\.?\\d*)\\s*元', flags: '', severity: 'INFO', suggestion: '', hint_pass: '已检测到金额' },
 
   // Group: 收款信息
-  { id: 'r4a', group: '收款信息', name: '收款户名', type: 'text', pattern: '长沙冉星信息科技有限公司', flags: '', severity: 'ERROR', suggestion: '收款户名应为「长沙冉星信息科技有限公司」' },
-  { id: 'r4b', group: '收款信息', name: '收款开户行', type: 'regex', pattern: '招商银行.*?(东塘|长沙)', flags: '', severity: 'WARN', suggestion: '开户行应为招商银行长沙分行东塘支行' },
-  { id: 'r4c', group: '收款信息', name: '收款账号', type: 'regex', pattern: '731\\s*906\\s*191\\s*710\\s*603|731906191710603', flags: '', severity: 'ERROR', suggestion: '收款账号应为 731906191710603' },
+  { id: 'r4a', group: '收款信息', name: '收款户名', type: 'text', pattern: '', flags: '', severity: 'ERROR', suggestion: '收款户名需与公司标准一致，请在规则编辑器中配置' },
+  { id: 'r4b', group: '收款信息', name: '收款开户行', type: 'regex', pattern: '', flags: '', severity: 'WARN', suggestion: '开户行需与公司标准一致，请在规则编辑器中配置' },
+  { id: 'r4c', group: '收款信息', name: '收款账号', type: 'regex', pattern: '', flags: '', severity: 'ERROR', suggestion: '收款账号需与公司标准一致，请在规则编辑器中配置（支持空格容错）' },
 
   // Group: 签署信息
   { id: 'r5a', group: '签署信息', name: '甲方签署日期', type: 'regex', pattern: '甲\\s*方.{0,200}?(\\d{4}[-年]\\d{1,2}[-月]\\d{1,2}日?)', flags: '', severity: 'WARN', suggestion: '甲方签署日期必须填写，格式 YYYY-MM-DD' },

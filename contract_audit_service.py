@@ -12,18 +12,14 @@ CORS(app)
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'audit_rules.json')
 DEFAULT_CONFIG = {
     "基本信息": {
-        "乙方名称": "长沙冉星信息科技有限公司",
-        "乙方地址": "长沙市高新开发区中电软件园7栋5楼",
-        "乙方电话": "0731-85553440",
-        "收款户名": "长沙冉星信息科技有限公司",
-        "收款开户行": "招商银行长沙分行东塘支行",
-        "收款账号": "731906191710603"
+        "乙方名称": "",
+        "乙方地址": "",
+        "乙方电话": "",
+        "收款户名": "",
+        "收款开户行": "",
+        "收款账号": ""
     },
-    "开户行变体": [
-        "招商银行长沙分行东塘支行",
-        "招商银行长沙东塘支行",
-        "招商银行东塘支行"
-    ],
+    "开户行变体": [],
     "条款检查": {
         "必须有违约责任条款": True,
         "必须有保密条款": True,
@@ -648,14 +644,16 @@ def perform_audit(text, filename):
         issues.append({'item': '甲方名称', 'status': 'WARN', 'detail': '无法识别甲方名称', 'suggestion': '检查合同格式'})
 
     # 乙方名称
-    yf = re.search(r'乙\s*方[：:]\s*([^\n\s，,]{2,40}?公司[^\n\s，,]*|长沙冉星[^\n\s]{0,20})', text)
+    yf = re.search(r'乙\s*方[：:]\s*([^\n\s，,]{2,60})', text)
     if yf:
         name = re.sub(r'（[^）]*）', '', yf.group(1)).strip()
-        ok = STANDARDS['乙方名称'] in name or '冉星' in name or '问卷星' in name
-        if ok:
+        std_name = STANDARDS.get('乙方名称', '')
+        if std_name and (std_name in name or name in std_name):
             results.append({'item': '乙方名称', 'status': 'PASS', 'detail': name})
+        elif name:
+            results.append({'item': '乙方名称', 'status': 'INFO', 'detail': '检测到：' + name})
         else:
-            issues.append({'item': '乙方名称', 'status': 'WARN', 'detail': '乙方名称可能错误: ' + name, 'suggestion': '确认为长沙冉星信息科技有限公司'})
+            issues.append({'item': '乙方名称', 'status': 'WARN', 'detail': '未找到乙方名称', 'suggestion': '检查合同格式'})
     else:
         issues.append({'item': '乙方名称', 'status': 'WARN', 'detail': '未找到乙方名称', 'suggestion': '检查合同格式'})
 
@@ -666,7 +664,7 @@ def perform_audit(text, filename):
         issues.append({'item': '乙方地址', 'status': 'WARN', 'detail': '地址未匹配标准值', 'suggestion': '确认为' + STANDARDS['乙方地址']})
 
     # 乙方电话
-    if STANDARDS['乙方电话'] in text or '0731-85553440' in text:
+    if STANDARDS.get('乙方电话') and STANDARDS['乙方电话'] in text:
         results.append({'item': '乙方电话', 'status': 'PASS', 'detail': STANDARDS['乙方电话']})
     else:
         issues.append({'item': '乙方电话', 'status': 'WARN', 'detail': '电话未匹配标准值', 'suggestion': '确认为' + STANDARDS['乙方电话']})
@@ -690,12 +688,11 @@ def perform_audit(text, filename):
             bd.append('开户行: 未匹配')
 
     found_acct = None
-    # 收款账号：用捕获组只取数字+空格部分，脱空格后比对标准值
+    # 收款账号：搜索"账号："或"账号"后的数字序列
+    acct_std = STANDARDS.get('收款账号', '')
     for pat in [
         r'账\s*号[：:]\s*([\d\s]{15,25})',
         r'账号[：:]\s*([\d\s]{15,25})',
-        r'731\s*906\s*191\s*710\s*603',
-        r'731906191710603',
     ]:
         m = re.search(pat, text)
         if m:
