@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>民法典查询 - AI合同审核工具</title>
+    <link rel="stylesheet" href="css/civil-code.css">
+    <script src="js/civil-code-data.js"></script>
+    <script src="js/civil-code-browser.js"></script>
+</head>
+<body>
+    <div class="header">
+        <div class="header-row">
+            <h1>中华人民共和国民法典查询</h1>
+            <a href="index.html">返回合同审核工具</a>
+        </div>
+        <div class="disclaimer">
+            免责声明：本页面民法典查询、AI 咨询和相关条文定位仅供学习与参考，不构成法律意见或律师服务。条文内容和具体适用请以国家法律法规官方发布渠道、权威专业网站或专业法律人士核查意见为准。
+        </div>
+        <div class="search">
+            <input id="searchInput" type="search" placeholder="搜索条号、关键词，或描述你的情况，例如：房东不退押金怎么办？">
+            <button id="searchBtn">查询</button>
+            <button id="consultBtn">AI咨询</button>
+            <button id="clearBtn">显示全文</button>
+        </div>
+    </div>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="toc-title">目录</div>
+            <div id="toc"></div>
+        </aside>
+        <div class="content-col">
+            <div id="consultResultContainer"></div>
+            <main class="content" id="content"></main>
+        </div>
+    </div>
+    <script src="js/civil-code-page.js"></script>
+</body>
+</html>

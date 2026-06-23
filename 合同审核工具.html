@@ -1,0 +1,2795 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>合同审核工具 v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/quill.snow.css">
+<!-- Third-party JS -->
+<script src="js/jszip.min.js"></script>
+<script src="js/mammoth.browser.min.js"></script>
+<script src="js/quill.min.js"></script>
+<script src="js/civil-code-data.js"></script>
+<script src="js/civil-code-evidence.js"></script>
+<script src="js/civil-code-browser.js"></script>
+<style>
+/* ============================================================
+   CONTRACT AUDIT TOOL v3 — Merged Edition
+   Rule Engine + AI + Civil Code + Rule Editor
+   ============================================================ */
+
+:root {
+  --bg: #EFF1F5;
+  --surface: #FFFFFF;
+  --border: rgba(0,0,0,0.08);
+  --border-strong: rgba(0,0,0,0.14);
+  --text-primary: #0F1520;
+  --text-secondary: #3F4555;
+  --text-tertiary: #7A8299;
+  --accent: #4A90D9;
+  --accent-mid: #3B82C4;
+  --accent-light: #DCEDFF;
+  --accent-lighter: #EFF6FF;
+  --accent-dim: rgba(74,144,217,0.10);
+  --warn-bg: #FFF8EC;
+  --warn-border: #E8A800;
+  --warn-text: #92600A;
+  --warn-dim: rgba(232,168,0,0.08);
+  --success: #10B981;
+  --success-bg: #ECFDF5;
+  --error: #EF4444;
+  --error-bg: #FEF2F2;
+  --radius: 10px;
+  --radius-lg: 18px;
+  --shadow-diffuse: 0 6px 32px -6px rgba(0,0,0,0.09);
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.07);
+  --transition: all 0.22s cubic-bezier(0.16,1,0.3,1);
+  --editor-width: 480px;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+}
+
+/* ---- SCROLLBAR ---- */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
+
+/* ---- HEADER ---- */
+.header {
+  position: sticky; top:0; z-index:100;
+  background: rgba(239,241,245,0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+}
+.header-inner {
+  max-width: 1300px; margin:0 auto;
+  padding:0 24px; height:58px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.header-left { display:flex; align-items:center; gap:12px; }
+.brand-icon {
+  width:34px; height:34px;
+  background: var(--accent); border-radius:9px;
+  display:flex; align-items:center; justify-content:center;
+  position:relative; overflow:hidden;
+  box-shadow: 0 3px 10px rgba(74,144,217,0.4);
+}
+.brand-icon svg { width:18px; height:18px; stroke:#fff; fill:none; stroke-width:1.5; }
+.brand-icon::after {
+  content:''; position:absolute; inset:0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, transparent 60%);
+  border-radius: inherit;
+}
+.brand-name { font-size:15px; font-weight:600; letter-spacing:-0.02em; }
+.brand-sub { font-size:11px; color:var(--text-tertiary); }
+
+.header-right { display:flex; align-items:center; gap:14px; }
+.mode-badge {
+  font-size:10px; font-weight:600; padding:4px 10px;
+  border-radius:20px; letter-spacing:0.04em;
+}
+.mode-badge.l0 { background: var(--success-bg); color: var(--success); border:1px solid rgba(16,185,129,0.2); }
+.mode-badge.l2 { background: var(--accent-light); color: var(--accent); border:1px solid rgba(74,144,217,0.2); }
+.mode-badge.offline { background: #F3F4F6; color: var(--text-tertiary); }
+
+.service-pill {
+  display:flex; align-items:center; gap:7px;
+  padding:6px 14px; border-radius:20px;
+  background: var(--surface); border:1px solid var(--border);
+  font-size:11px; color:var(--text-secondary); font-weight:500;
+}
+.service-dot { width:7px; height:7px; border-radius:50%; background:var(--text-tertiary); transition: background 0.5s; }
+.service-pill.online .service-dot { background:var(--accent); box-shadow:0 0 0 4px rgba(74,144,217,0.2); animation:pulse-dot 2.4s ease-in-out infinite; }
+.service-pill.offline .service-dot { background:#D1D5DB; }
+@keyframes pulse-dot { 0%,100%{box-shadow:0 0 0 3px var(--accent-light)} 50%{box-shadow:0 0 0 5px rgba(74,144,217,0)} }
+
+.header-btn {
+  display:flex; align-items:center; gap:6px;
+  padding:7px 14px; border-radius:8px;
+  border:1px solid var(--border); background:var(--surface);
+  font-size:11px; font-weight:500; color:var(--text-secondary);
+  cursor:pointer; transition:var(--transition);
+  font-family: inherit;
+}
+.header-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-lighter); }
+.header-btn svg { width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:1.5; }
+.header-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.header-btn.active svg { stroke: #fff; }
+
+/* ---- MAIN ---- */
+.main { max-width:1300px; margin:0 auto; padding:24px 24px 48px; }
+
+/* Bento Grid */
+.bento { display:grid; grid-template-columns:repeat(12, 1fr); gap:16px; }
+.bento-upload { grid-column:span 7; }
+.bento-result { grid-column:span 5; }
+
+/* ---- CARD ---- */
+.card {
+  background: var(--surface); border-radius:var(--radius-lg);
+  border:1px solid var(--border); box-shadow:var(--shadow-diffuse);
+  overflow:hidden; position:relative;
+}
+.card::before {
+  content:''; position:absolute; inset:0; border-radius:inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, transparent 50%);
+  pointer-events:none;
+}
+.card-header {
+  padding:16px 22px 12px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between; position:relative;
+}
+.card-title {
+  font-size:13px; font-weight:600; letter-spacing:-0.01em;
+  display:flex; align-items:center; gap:8px;
+}
+.card-title svg { width:16px; height:16px; stroke:var(--accent); fill:none; stroke-width:2; }
+.card-title .badge-chip {
+  font-size:10px; font-weight:600; padding:2px 8px; border-radius:12px;
+  background: var(--accent-light); color: var(--accent);
+}
+.card-body { padding:22px; position:relative; }
+
+/* ---- UPLOAD ZONE ---- */
+.drop-zone {
+  border:1.5px dashed var(--border-strong); border-radius:var(--radius);
+  padding:44px 28px; text-align:center; cursor:pointer;
+  transition:var(--transition); background:var(--bg); position:relative;
+}
+.drop-zone:hover, .drop-zone.drag-over { border-color:var(--accent); background:var(--accent-lighter); }
+.drop-zone.disabled { opacity:0.5; cursor:not-allowed; pointer-events:none; }
+.drop-icon {
+  width:52px; height:52px; border-radius:14px;
+  background:var(--surface); border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  margin:0 auto 16px; transition:var(--transition); box-shadow:var(--shadow-sm);
+}
+.drop-zone:hover .drop-icon, .drop-zone.drag-over .drop-icon {
+  background:var(--accent); border-color:var(--accent); transform:translateY(-2px);
+}
+.drop-icon svg { width:24px; height:24px; stroke:var(--accent); fill:none; stroke-width:1.5; transition:var(--transition); }
+.drop-zone:hover .drop-icon svg, .drop-zone.drag-over .drop-icon svg { stroke:white; }
+.drop-title { font-size:14px; font-weight:600; margin-bottom:6px; }
+.drop-hint { font-size:12px; color:var(--text-tertiary); }
+.drop-input { display:none; }
+
+.upload-tabs { display:flex; gap:6px; margin-top:14px; }
+.upload-tab {
+  padding:6px 14px; border-radius:8px; border:1px solid var(--border);
+  background:var(--surface); font-size:11px; font-weight:500;
+  cursor:pointer; transition:var(--transition); font-family:inherit;
+  color: var(--text-secondary);
+}
+.upload-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.upload-tab.disabled { opacity:0.45; cursor:not-allowed; }
+
+/* ---- FILE ITEMS ---- */
+.file-list { margin-top:14px; }
+.file-item {
+  display:flex; align-items:center; gap:12px;
+  padding:12px 14px; border-radius:var(--radius);
+  background:var(--bg); border:1px solid var(--border);
+  margin-bottom:8px;
+  animation:slide-in 0.3s cubic-bezier(0.16,1,0.3,1) both;
+}
+@keyframes slide-in { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+.file-ext-icon {
+  width:38px; height:38px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; font-size:10px; font-weight:700; letter-spacing:0.02em;
+}
+.file-ext-icon.pdf { background:#FFF1F0; color:#E5534B; border:1px solid rgba(229,83,75,0.12); }
+.file-ext-icon.docx { background:#F0F6FF; color:#4A90D9; border:1px solid rgba(74,144,217,0.12); }
+.file-ext-icon.doc { background:#F6F0FF; color:#8B5CF6; border:1px solid rgba(139,92,246,0.12); }
+.file-ext-icon svg { width:18px; height:18px; fill:none; stroke-width:1.5; }
+
+.file-info { flex:1; min-width:0; }
+.file-name { font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.file-meta { font-size:11px; color:var(--text-tertiary); }
+.file-status {
+  font-size:11px; font-weight:600; padding:4px 11px; border-radius:20px; white-space:nowrap;
+}
+.file-status.uploading { background:var(--accent); color:#fff; box-shadow:0 2px 8px rgba(74,144,217,0.3); }
+.file-status.done { background:var(--success); color:#fff; }
+.file-status.fail { background:var(--error-bg); color:var(--error); border:1px solid rgba(239,68,68,0.2); }
+
+.progress-bar { width:100%; height:2px; background:var(--border); border-radius:1px; margin-top:8px; overflow:hidden; }
+.progress-fill { height:100%; background:linear-gradient(90deg, var(--accent-mid), var(--accent)); border-radius:1px; transition:width 0.4s cubic-bezier(0.16,1,0.3,1); will-change:width; }
+
+/* ---- RESULT ---- */
+.result-state { padding:0; }
+.state-hero { padding:26px 22px 22px; text-align:center; position:relative; overflow:hidden; transition:background 0.4s; }
+.state-hero.idle { background:var(--accent-lighter); }
+.state-hero.pass { background:var(--accent); color:#fff; }
+.state-hero.warn { background:var(--warn-bg); border-bottom:1px solid rgba(232,168,0,0.2); }
+.state-hero.error { background:var(--error-bg); border-bottom:1px solid rgba(220,38,38,0.15); }
+
+.state-hero.pass .state-label, .state-hero.pass .state-sub { color:#fff; }
+.state-hero.pass .state-ring { background:rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.35); }
+.state-hero.pass .state-ring svg { stroke:#fff; }
+.state-hero.warn .state-label { color:var(--warn-text); }
+.state-hero.warn .state-ring { background:var(--warn-bg); border:1px solid var(--warn-border); }
+.state-hero.warn .state-ring svg { stroke:var(--warn-border); }
+.state-hero.error .state-label { color:#B91C1C; }
+.state-hero.error .state-ring { background:var(--error-bg); border:1px solid rgba(220,38,38,0.25); }
+.state-hero.error .state-ring svg { stroke:var(--error); }
+
+.state-ring {
+  width:56px; height:56px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  margin:0 auto 14px; position:relative;
+}
+.state-ring svg { width:26px; height:26px; fill:none; stroke-width:2; }
+.state-hero.idle .state-ring { background:var(--accent-light); border:1.5px solid rgba(74,144,217,0.25); }
+.state-hero.idle .state-ring svg { stroke:var(--accent); }
+.state-label { font-size:18px; font-weight:700; letter-spacing:-0.025em; margin-bottom:4px; }
+.state-sub { font-size:12px; margin-bottom:6px; }
+.state-file { font-size:11px; opacity:0.7; max-width:300px; margin:0 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+.result-section { padding:0; }
+.section-label {
+  font-size:10px; font-weight:700; text-transform:uppercase;
+  letter-spacing:0.1em; color:var(--accent);
+  padding:14px 22px 6px; display:flex; align-items:center; gap:8px;
+}
+.section-label .layer-tag {
+  font-size:9px; padding:2px 7px; border-radius:4px;
+  background:var(--accent-dim); color:var(--accent); font-weight:600;
+}
+.result-row {
+  display:flex; align-items:flex-start; gap:11px;
+  padding:10px 22px; border-bottom:1px solid var(--border);
+  transition:background 0.15s;
+}
+.result-row:last-child { border-bottom:none; }
+.result-row:hover { background:var(--accent-lighter); }
+
+.row-dot {
+  width:22px; height:22px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; margin-top:1px;
+}
+.row-dot svg { width:12px; height:12px; fill:none; stroke-width:2; }
+.row-dot.pass { background:var(--accent); box-shadow:0 2px 8px rgba(74,144,217,0.35); }
+.row-dot.pass svg { stroke:#fff; }
+.row-dot.warn { background:var(--warn-bg); border:1px solid var(--warn-border); }
+.row-dot.warn svg { stroke:var(--warn-border); }
+.row-dot.error { background:var(--error-bg); border:1px solid rgba(220,38,38,0.3); }
+.row-dot.error svg { stroke:var(--error); }
+.row-dot.info { background:rgba(0,0,0,0.04); }
+.row-dot.info svg { stroke:var(--text-tertiary); }
+
+.row-content { flex:1; min-width:0; }
+.row-name { font-size:13px; font-weight:500; }
+.row-detail { font-size:11px; color:var(--text-secondary); margin-top:2px; line-height:1.5; }
+.row-hint {
+  font-size:10px; color:var(--warn-text); background:var(--warn-bg);
+  border-radius:6px; padding:5px 9px; margin-top:5px;
+  border-left:2px solid var(--warn-border); line-height:1.5;
+}
+
+/* ---- CLAUSE BLOCKS ---- */
+.clause-block { padding:14px 22px; border-top:1px solid var(--border); }
+.clause-type {
+  font-size:11px; font-weight:600; color:var(--accent);
+  margin-bottom:8px; display:flex; align-items:center; gap:7px;
+}
+.clause-type::before { content:''; width:3px; height:12px; background:var(--accent); border-radius:2px; flex-shrink:0; }
+.clause-item {
+  font-size:10px; color:var(--text-secondary);
+  background:var(--accent-lighter); border:1px solid rgba(74,144,217,0.15);
+  border-radius:6px; padding:6px 10px; margin-bottom:5px; line-height:1.6;
+  word-break:break-all;
+}
+.clause-item .kw { color:var(--accent-mid); font-weight:700; }
+
+/* ---- CIVIL CODE EVIDENCE ---- */
+.civil-code-evidence {
+  margin:4px 22px 10px; padding:8px 10px;
+  background:#f1f8e9; border-left:3px solid #7cb342;
+  border-radius:4px; font-size:12px; color:#33691e;
+}
+.civil-code-evidence summary { cursor:pointer; font-weight:600; }
+.civil-code-article { margin-top:8px; padding-top:8px; border-top:1px solid #dcedc8; }
+.civil-code-article-title { font-weight:600; color:#2e7d32; }
+.civil-code-article-title span, .civil-code-article-path { color:#689f38; font-weight:400; }
+.civil-code-article-text { margin-top:4px; line-height:1.6; color:#333; }
+
+/* ---- EMPTY / SKELETON ---- */
+.empty-state { padding:48px 22px; text-align:center; }
+.empty-graphic {
+  width:56px; height:56px; border-radius:14px;
+  background:var(--bg); border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  margin:0 auto 14px;
+}
+.empty-graphic svg { width:24px; height:24px; stroke:var(--text-tertiary); fill:none; stroke-width:1.5; opacity:0.6; }
+.empty-title { font-size:14px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; }
+.empty-desc { font-size:12px; color:var(--text-tertiary); }
+
+.error-state { padding:14px 22px; display:flex; align-items:flex-start; gap:12px; }
+.error-icon { width:30px; height:30px; border-radius:50%; background:rgba(0,0,0,0.04); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.error-icon svg { width:15px; height:15px; stroke:var(--text-tertiary); fill:none; stroke-width:1.5; }
+.error-text { font-size:12px; color:var(--text-secondary); line-height:1.5; }
+.error-text strong { color:var(--text-primary); font-weight:600; }
+
+.skeleton { background:linear-gradient(90deg,#E4E8F0 25%,#D8DDE8 50%,#E4E8F0 75%); background-size:200% 100%; animation:shimmer 1.6s infinite; border-radius:8px; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.skel-ring { width:56px; height:56px; border-radius:50%; margin:0 auto 14px; }
+.skel-label { width:80px; height:20px; margin:0 auto 6px; }
+.skel-sub { width:120px; height:14px; margin:0 auto; }
+.skeleton-rows { padding:14px 22px 22px; }
+.skel-row { height:12px; margin-bottom:12px; border-radius:6px; }
+.skel-row.w-60 { width:60%; } .skel-row.w-80 { width:80%; } .skel-row.w-40 { width:40%; }
+
+/* ---- BUTTONS ---- */
+.btn {
+  display:inline-flex; align-items:center; gap:6px;
+  border:none; border-radius:8px; padding:10px 20px;
+  font-size:13px; font-weight:600; cursor:pointer;
+  transition:var(--transition); font-family:inherit;
+}
+.btn-primary { background:linear-gradient(135deg,var(--accent-mid),var(--accent)); color:#fff; box-shadow:0 2px 8px rgba(74,144,217,0.25); }
+.btn-primary:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(74,144,217,0.35); }
+.btn-secondary { background:var(--surface); color:var(--text-secondary); border:1px solid var(--border); }
+.btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
+.btn-success { background:linear-gradient(135deg,#059669,#10B981); color:#fff; }
+.btn-warn { background:linear-gradient(135deg,#D97706,#F59E0B); color:#fff; }
+.btn:disabled { opacity:0.45; cursor:not-allowed; pointer-events:none; }
+.btn-sm { padding:6px 12px; font-size:11px; border-radius:6px; }
+
+.button-group { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+
+/* ---- QUILL EDITOR ---- */
+#quillToolbar { border:none !important; }
+#quillEditor.ql-container,
+#quillEditor.ql-container.ql-snow {
+  border:none !important; font-size:14px;
+  font-family:'Geist','Segoe UI',sans-serif;
+}
+#quillEditor .ql-editor {
+  padding:14px 16px; line-height:2; font-size:14px;
+}
+
+/* Fullscreen mode */
+#editorCard.fullscreen {
+  position:fixed !important; inset:0 !important; z-index:9999 !important;
+  margin:0 !important; border-radius:0 !important;
+  display:flex; flex-direction:column;
+  width:100vw !important; height:100vh !important;
+}
+#editorCard.fullscreen .card-header { flex-shrink:0; }
+#editorCard.fullscreen #quillToolbar { flex-shrink:0; }
+#editorCard.fullscreen #quillEditor { flex:1; min-height:0; }
+#editorCard.fullscreen .ql-editor { padding:24px 48px; max-height:none; }
+
+/* ---- CHAT FLOAT ---- */
+.chat-toggle {
+  position:fixed; bottom:24px; right:24px; z-index:200;
+  width:48px; height:48px; border-radius:50%;
+  background:var(--accent); color:#fff;
+  border:none; cursor:pointer; box-shadow:0 4px 20px rgba(74,144,217,0.4);
+  display:flex; align-items:center; justify-content:center;
+  transition:var(--transition); font-size:22px;
+}
+.chat-toggle:hover { transform:scale(1.08); }
+.chat-toggle.active { background:var(--text-primary); }
+
+.chat-panel {
+  position:fixed; bottom:84px; right:24px; z-index:199;
+  width:380px; max-height:520px;
+  background:var(--surface); border-radius:var(--radius-lg);
+  border:1px solid var(--border); box-shadow:0 12px 48px rgba(0,0,0,0.15);
+  display:none; flex-direction:column; overflow:hidden;
+}
+.chat-panel.open { display:flex; }
+.chat-panel-header {
+  padding:14px 18px; border-bottom:1px solid var(--border);
+  font-size:13px; font-weight:600;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.chat-messages {
+  flex:1; overflow-y:auto; padding:14px 18px;
+  max-height:340px; display:flex; flex-direction:column; gap:10px;
+}
+.chat-msg {
+  font-size:12px; line-height:1.6; padding:8px 12px; border-radius:10px; max-width:90%;
+}
+.chat-msg.user { align-self:flex-end; background:var(--accent); color:#fff; }
+.chat-msg.ai { align-self:flex-start; background:var(--bg); color:var(--text-primary); }
+.chat-msg.system { align-self:flex-start; background:var(--warn-bg); color:var(--warn-text); font-size:11px; }
+.chat-input-row { display:flex; gap:8px; padding:12px 18px; border-top:1px solid var(--border); }
+.chat-input-row input {
+  flex:1; border:1px solid var(--border); border-radius:8px;
+  padding:10px 14px; font-size:12px; font-family:inherit;
+  outline:none; transition:var(--transition);
+}
+.chat-input-row input:focus { border-color:var(--accent); }
+.chat-input-row button {
+  padding:10px 16px; border-radius:8px; background:var(--accent);
+  color:#fff; border:none; cursor:pointer; font-weight:600; font-size:12px;
+}
+
+/* ---- RULE EDITOR PANEL ---- */
+.rule-editor-overlay {
+  position:fixed; inset:0; z-index:300;
+  background:rgba(0,0,0,0.25); display:none;
+  align-items:stretch; justify-content:flex-end;
+}
+.rule-editor-overlay.open { display:flex; }
+.rule-editor {
+  width:560px; max-width:100vw; background:var(--surface);
+  display:flex; flex-direction:column; overflow:hidden;
+  box-shadow:-8px 0 40px rgba(0,0,0,0.12);
+  animation:slide-left 0.25s cubic-bezier(0.16,1,0.3,1) both;
+}
+@keyframes slide-left { from{transform:translateX(40px);opacity:0} to{transform:translateX(0);opacity:1} }
+
+.rule-editor-header {
+  padding:16px 22px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.rule-editor-title { font-size:15px; font-weight:600; }
+.rule-editor-close {
+  width:30px; height:30px; border-radius:8px; border:1px solid var(--border);
+  background:var(--surface); cursor:pointer; display:flex; align-items:center; justify-content:center;
+  font-size:16px; color:var(--text-tertiary); transition:var(--transition);
+}
+.rule-editor-close:hover { background:var(--error-bg); border-color:var(--error); color:var(--error); }
+
+.rule-editor-body { flex:1; overflow-y:auto; padding:16px 22px; }
+.rule-editor-footer { padding:14px 22px; border-top:1px solid var(--border); display:flex; gap:10px; }
+
+.rule-group { margin-bottom:16px; }
+.rule-group-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 12px; border-radius:8px; background:var(--bg);
+  cursor:pointer; user-select:none; transition:var(--transition); margin-bottom:4px;
+}
+.rule-group-header:hover { background:var(--accent-dim); }
+.rule-group-name { font-size:12px; font-weight:600; display:flex; align-items:center; gap:8px; }
+.rule-group-count { font-size:10px; color:var(--text-tertiary); background:var(--surface); padding:2px 7px; border-radius:10px; }
+.rule-group-arrow { font-size:12px; color:var(--text-tertiary); transition:transform 0.2s; }
+.rule-group.collapsed .rule-group-arrow { transform:rotate(-90deg); }
+.rule-group.collapsed .rule-items { display:none; }
+
+.rule-item {
+  display:flex; align-items:center; gap:10px;
+  padding:8px 12px; border-radius:8px;
+  border:1px solid transparent; transition:var(--transition);
+  cursor:pointer; margin-bottom:2px;
+}
+.rule-item:hover { background:var(--accent-lighter); border-color:rgba(74,144,217,0.15); }
+.rule-item.selected { background:var(--accent-lighter); border-color:var(--accent); }
+.rule-item-toggle {
+  width:32px; height:18px; border-radius:9px; background:#D1D5DB;
+  cursor:pointer; transition:background 0.2s; position:relative; flex-shrink:0;
+}
+.rule-item-toggle.on { background:var(--accent); }
+.rule-item-toggle::after {
+  content:''; position:absolute; top:2px; left:2px;
+  width:14px; height:14px; border-radius:50%; background:#fff;
+  transition:transform 0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.15);
+}
+.rule-item-toggle.on::after { transform:translateX(14px); }
+.rule-item-info { flex:1; min-width:0; }
+.rule-item-name { font-size:12px; font-weight:500; }
+.rule-item-pattern { font-size:10px; color:var(--text-tertiary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:monospace; }
+.rule-item-severity {
+  font-size:9px; font-weight:700; padding:2px 8px; border-radius:10px; text-transform:uppercase;
+}
+.rule-item-severity.pass { background:var(--accent-dim); color:var(--accent); }
+.rule-item-severity.warn { background:var(--warn-dim); color:var(--warn-text); }
+.rule-item-severity.error { background:var(--error-bg); color:var(--error); }
+
+/* Rule edit form */
+.rule-edit-form { padding:0; }
+.form-group { margin-bottom:12px; }
+.form-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-tertiary); margin-bottom:4px; display:block; }
+.form-input, .form-select, .form-textarea {
+  width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:8px;
+  font-size:12px; font-family:inherit; outline:none; transition:var(--transition);
+  background:var(--surface); color:var(--text-primary);
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-dim); }
+.form-textarea { min-height:60px; resize:vertical; font-family:monospace; font-size:11px; }
+.form-row { display:flex; gap:8px; }
+.form-row > * { flex:1; }
+
+.rule-test-area { margin-top:16px; }
+.rule-test-result {
+  font-size:10px; padding:6px 10px; border-radius:6px; margin-top:6px;
+  font-family:monospace;
+}
+.rule-test-result.match { background:var(--success-bg); color:#065F46; }
+.rule-test-result.no-match { background:var(--error-bg); color:#991B1B; }
+
+.rule-editor-empty { text-align:center; padding:32px 0; color:var(--text-tertiary); font-size:12px; }
+
+/* ---- QUICK ACTIONS BAR ---- */
+.actions-bar {
+  display:flex; gap:10px; padding:14px 22px; border-top:1px solid var(--border); flex-wrap:wrap;
+}
+
+/* ---- CONFIG PANEL ---- */
+.config-section { margin-bottom:18px; }
+.config-section h4 { font-size:12px; font-weight:600; margin-bottom:8px; color:var(--text-secondary); display:flex; align-items:center; gap:6px; }
+
+/* ---- ANNOTATION MARKERS ---- */
+.annotation-comment { background:#FFF9C4; border-bottom:2px dotted #F9A825; cursor:pointer; }
+.annotation-deletion { background:#FFEBEE; color:#C62828; text-decoration:line-through; }
+.annotation-addition { background:#E8F5E9; color:#2E7D32; text-decoration:underline; }
+
+#annotationPanel .anno-item {
+  padding:6px 8px; border-radius:6px; background:var(--surface);
+  border:1px solid var(--border); cursor:pointer; transition:var(--transition);
+}
+#annotationPanel .anno-item:hover { border-color:var(--accent); }
+.anno-type { font-size:9px; font-weight:700; padding:1px 6px; border-radius:4px; margin-bottom:3px; display:inline-block; }
+.anno-type.comment { background:#FFF9C4; color:#F57F17; }
+.anno-type.deletion { background:#FFEBEE; color:#C62828; }
+.anno-type.addition { background:#E8F5E9; color:#2E7D32; }
+.anno-quote { font-size:10px; color:var(--text-secondary); margin:3px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.anno-note { font-size:10px; color:var(--text-primary); line-height:1.4; }
+.anno-del { background:none; border:none; color:var(--text-tertiary); cursor:pointer; float:right; font-size:12px; }
+.anno-del:hover { color:var(--error); }
+
+/* ---- FOOTER ---- */
+.footer {
+  max-width:1300px; margin:0 auto; padding:0 24px 24px;
+  text-align:center; font-size:11px; color:var(--text-tertiary); opacity:0.6;
+}
+
+/* ---- RESPONSIVE ---- */
+@media (max-width:1000px) {
+  .bento-upload, .bento-result { grid-column:span 12; }
+  .chat-panel { width:calc(100vw - 48px); right:24px; }
+  .rule-editor { width:100vw; }
+}
+@media (max-width:600px) {
+  .header-right .mode-badge, .header-right .service-pill { display:none; }
+  .card-body { padding:16px; }
+  .drop-zone { padding:28px 16px; }
+  .main { padding:16px 12px 40px; }
+}
+
+/* ---- CIVIL CODE RESULT IN AUDIT ---- */
+.ai-issue-block {
+  background:var(--accent-lighter); border:1px solid rgba(74,144,217,0.15);
+  border-radius:8px; padding:10px 14px; margin:8px 22px;
+}
+.ai-issue-block .ai-badge {
+  font-size:9px; font-weight:700; padding:2px 7px; border-radius:4px;
+  background:linear-gradient(135deg, #667eea, #764ba2); color:#fff;
+  margin-bottom:6px; display:inline-block;
+}
+.ai-issue-text { font-size:12px; color:var(--text-primary); line-height:1.6; }
+
+/* Notification toast */
+.toast {
+  position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:500;
+  padding:10px 20px; border-radius:10px; font-size:12px; font-weight:600;
+  animation:toast-in 0.3s cubic-bezier(0.16,1,0.3,1), toast-out 0.3s 2.5s ease-out forwards;
+  box-shadow:0 6px 24px rgba(0,0,0,0.15);
+}
+.toast.success { background:var(--success); color:#fff; }
+.toast.error { background:var(--error); color:#fff; }
+.toast.info { background:var(--accent); color:#fff; }
+@keyframes toast-in { from{opacity:0;transform:translateX(-50%) translateY(-12px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+@keyframes toast-out { from{opacity:1} to{opacity:0} }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">合同审核工具 <span style="font-weight:400;color:var(--text-tertiary);font-size:12px;">v3</span></div>
+        <div class="brand-sub">规则引擎 + AI增强 + 民法典背书</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="mode-badge l0" id="modeBadge">L0 前端模式</span>
+      <div class="service-pill offline" id="servicePill">
+        <span class="service-dot"></span>
+        <span id="serviceText">后端离线</span>
+      </div>
+      <button class="header-btn" id="btnRules" title="审核规则编辑">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        规则
+      </button>
+      <button class="header-btn" id="btnConfig" title="API 配置">
+        <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        API
+      </button>
+      <button class="header-btn" id="btnCivilCode" title="民法典查询" onclick="window.open('civil-code.html','_blank')">
+        <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        民法典
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- Rule Editor Overlay -->
+<div class="rule-editor-overlay" id="ruleEditorOverlay">
+  <div class="rule-editor">
+    <div class="rule-editor-header">
+      <div class="rule-editor-title">⚙️ 审核规则编辑器</div>
+      <button class="rule-editor-close" id="btnRuleEditorClose">✕</button>
+    </div>
+    <div class="rule-editor-body" id="ruleEditorBody">
+      <!-- Dynamic content -->
+    </div>
+    <div class="rule-editor-footer">
+      <button class="btn btn-secondary btn-sm" id="btnRuleAdd">+ 新增规则</button>
+      <button class="btn btn-secondary btn-sm" id="btnRuleExport">📤 导出规则</button>
+      <button class="btn btn-secondary btn-sm" id="btnRuleImport">📥 导入规则</button>
+      <div style="flex:1;"></div>
+      <button class="btn btn-secondary btn-sm" id="btnRuleReset" style="color:var(--warn-text);">↺ 恢复默认</button>
+      <button class="btn btn-primary btn-sm" id="btnRuleSave">💾 保存规则</button>
+    </div>
+  </div>
+</div>
+
+<!-- API Config Overlay -->
+<div class="rule-editor-overlay" id="configOverlay">
+  <div class="rule-editor" style="width:420px;">
+    <div class="rule-editor-header">
+      <div class="rule-editor-title">🔑 API 配置</div>
+      <button class="rule-editor-close" id="btnConfigClose">✕</button>
+    </div>
+    <div class="rule-editor-body">
+      <div class="config-section">
+        <h4>🤖 AI 审核设置</h4>
+        <div class="form-group">
+          <label class="form-label">DeepSeek API Key</label>
+          <input class="form-input" id="apiKey" type="password" placeholder="sk-...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">审核模型</label>
+          <select class="form-select" id="aiModel">
+            <option value="deepseek-chat">DeepSeek Chat (推荐)</option>
+            <option value="deepseek-reasoner">DeepSeek Reasoner (深度推理)</option>
+          </select>
+        </div>
+      </div>
+      <div class="config-section">
+        <h4>🎯 AI 审核重点（自定义 Prompt）</h4>
+        <textarea class="form-textarea" id="auditFocus" placeholder="例如：重点关注违约责任条款、知识产权归属、保密义务…">重点审核违约责任条款、付款条款、保密条款、争议解决条款的合理性和完整性。</textarea>
+      </div>
+      <div class="config-section">
+        <h4>🔗 后端连接（L2 模式）</h4>
+        <div class="form-group">
+          <label class="form-label">后端地址</label>
+          <input class="form-input" id="backendUrl" placeholder="http://127.0.0.1:5577" value="http://127.0.0.1:5577">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="service-dot" id="configServiceDot" style="background:#D1D5DB;"></span>
+          <span style="font-size:11px;color:var(--text-tertiary);" id="configServiceStatus">未检测</span>
+          <button class="btn btn-secondary btn-sm" onclick="checkHealth()">检测</button>
+        </div>
+      </div>
+    </div>
+    <div class="rule-editor-footer">
+      <button class="btn btn-primary btn-sm" id="btnConfigSave">💾 保存配置</button>
+    </div>
+  </div>
+</div>
+
+<!-- Main Content -->
+<main class="main">
+  <div class="bento">
+
+    <!-- Upload Panel -->
+    <div class="bento-upload">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            上传合同
+            <span class="badge-chip" id="formatBadge">DOCX</span>
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="drop-zone" id="dropZone">
+            <div class="drop-icon">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="drop-title">拖拽文件或点击选择</div>
+            <div class="drop-hint" id="dropHint">支持 DOCX 格式（L2 模式额外支持 PDF / DOC）</div>
+            <input type="file" class="drop-input" id="fileInput" accept=".docx,.doc,.pdf">
+          </div>
+          <div class="file-list" id="fileList"></div>
+          <div class="upload-tabs" id="uploadTabs" style="display:none;">
+            <button class="upload-tab active">📄 DOCX (Mammoth)</button>
+            <button class="upload-tab disabled" id="tabPdf" title="需要后端 L2 模式">📑 PDF (PyMuPDF)</button>
+            <button class="upload-tab disabled" id="tabDoc" title="需要后端 L2 模式">📝 DOC (LibreOffice)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Editor (shown after upload) -->
+      <div id="editorSection" style="display:none;margin-top:16px;">
+        <div class="card" id="editorCard">
+          <div class="card-header" style="padding:10px 16px;">
+            <span class="card-title" style="font-size:12px;">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              原文编辑
+              <span id="trackBadge" style="font-size:9px;padding:1px 6px;border-radius:8px;background:var(--success-bg);color:var(--success);display:none;">●修订</span>
+            </span>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <button class="btn btn-sm" id="btnTrackChanges" style="font-size:10px;padding:3px 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">📝 修订</button>
+              <button class="btn btn-sm" id="btnAddComment" style="font-size:10px;padding:3px 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">💬 批注</button>
+              <button class="btn btn-sm" id="btnMarkDelete" style="font-size:10px;padding:3px 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">❌ 删除</button>
+              <button class="btn btn-sm" id="btnMarkAdd" style="font-size:10px;padding:3px 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">✅ 新增</button>
+              <button class="btn btn-sm" id="btnClearMark" style="font-size:10px;padding:3px 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">🧹</button>
+              <button class="btn btn-sm" id="btnAiPolish" style="font-size:10px;padding:3px 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;">✨ AI</button>
+              <button class="btn btn-sm" id="btnFullscreen" style="font-size:10px;padding:3px 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:inherit;" title="全屏">⛶</button>
+            </div>
+          </div>
+          <!-- Custom toolbar row -->
+          <div id="quillToolbar" style="display:flex;align-items:center;gap:2px;padding:4px 12px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--bg);flex-wrap:wrap;">
+            <span class="ql-formats" style="display:flex;gap:2px;margin-right:12px;">
+              <select class="ql-header" style="font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;background:var(--surface);font-family:inherit;"><option value="">正文</option><option value="1">标题1</option><option value="2">标题2</option><option value="3">标题3</option></select>
+              <button class="ql-bold" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--surface);cursor:pointer;font-size:12px;" title="加粗"><b>B</b></button>
+              <button class="ql-italic" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--surface);cursor:pointer;font-size:12px;" title="斜体"><i>I</i></button>
+              <button class="ql-underline" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--surface);cursor:pointer;font-size:12px;" title="下划线"><u>U</u></button>
+              <button class="ql-strike" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--surface);cursor:pointer;font-size:12px;" title="删除线"><s>S</s></button>
+            </span>
+            <span class="ql-formats" style="display:flex;gap:2px;margin-right:12px;">
+              <button class="ql-list" value="ordered" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--surface);cursor:pointer;font-size:10px;">1.</button>
+              <button class="ql-list" value="bullet" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--surface);cursor:pointer;font-size:10px;">•</button>
+            </span>
+            <span class="ql-formats" style="display:flex;gap:2px;">
+              <button class="ql-clean" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--surface);cursor:pointer;font-size:10px;">✕</button>
+            </span>
+          </div>
+          <div style="display:flex;flex:1;min-height:0;">
+            <div id="quillEditor" style="flex:1;min-height:360px;"></div>
+            <div id="annotationPanel" style="width:220px;border-left:1px solid var(--border);padding:8px 10px;overflow-y:auto;display:none;font-size:11px;background:var(--bg);flex-shrink:0;">
+              <div style="font-weight:600;font-size:10px;margin-bottom:6px;color:var(--text-secondary);display:flex;justify-content:space-between;">
+                批注列表
+                <button style="font-size:9px;padding:1px 6px;background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-tertiary);cursor:pointer;" onclick="clearAllAnnotations()">清空</button>
+              </div>
+              <div id="annotationList" style="display:flex;flex-direction:column;gap:4px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result Panel -->
+    <div class="bento-result">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">
+            <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            审核结果
+          </span>
+          <span style="font-size:10px;color:var(--text-tertiary);" id="auditCost"></span>
+        </div>
+        <div id="resultPanel">
+          <!-- Dynamic content -->
+        </div>
+        <div class="actions-bar" id="actionsBar" style="display:none;">
+          <button class="btn btn-success btn-sm" onclick="downloadAnnotatedDocx()">📥 下载标注合同</button>
+          <button class="btn btn-secondary btn-sm" onclick="downloadModifiedDocx()">📥 下载修改版</button>
+          <button class="btn btn-secondary btn-sm" onclick="resetAudit()">🔄 重新审核</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<div class="footer">合同审核工具 v3 · 规则引擎 + AI增强 + 民法典背书 · 2026</div>
+
+<!-- Chat Float -->
+<button class="chat-toggle" id="chatToggle" title="AI 合同助手">💬</button>
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-panel-header">
+    🤖 AI 合同助手
+    <button style="background:none;border:none;cursor:pointer;font-size:14px;" id="btnChatClose">✕</button>
+  </div>
+  <div class="chat-messages" id="chatMessages">
+    <div class="chat-msg system">👋 上传合同后可以直接问我问题，我会自动审核并回答。</div>
+  </div>
+  <div class="chat-input-row">
+    <input id="chatInput" placeholder="输入问题..." onkeydown="if(event.key==='Enter')sendChat()">
+    <button onclick="sendChat()">发送</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const API = 'http://127.0.0.1:5577';
+const BACKEND = { available: false, checking: false };
+let currentFile = null;
+let extractedText = '';
+let originalDocxBlob = null;
+let auditResult = null;
+let quillEditor = null;
+let chatHistory = [];
+let annotations = []; // {id, index, length, text, type:'comment'|'deletion'|'addition', note, time}
+
+// ============================================================
+// DEFAULT AUDIT RULES
+// ============================================================
+const DEFAULT_RULES = [
+  // Group: 基本信息
+  { id: 'r1', group: '基本信息', name: '合同编号', type: 'regex', pattern: 'HT\\d+', flags: 'i', severity: 'WARN', suggestion: '合同编号格式应为 HT+数字', hint_pass: '合同编号格式正确' },
+  { id: 'r2', group: '基本信息', name: '甲方名称', type: 'regex', pattern: '甲\\s*方[：:]\\s*([^\\n]{2,60})', flags: '', severity: 'WARN', suggestion: '甲方名称必须完整填写，请检查合同格式' },
+  { id: 'r3', group: '基本信息', name: '乙方名称（长沙冉星）', type: 'text', pattern: '长沙冉星信息科技|长沙冉星|冉星|问卷星', flags: 'i', severity: 'ERROR', suggestion: '乙方名称应为「长沙冉星信息科技有限公司」' },
+  { id: 'r7', group: '基本信息', name: '服务金额检测', type: 'regex', pattern: '[¥￥]?\\s*([\\d,]+\\.?\\d*)\\s*元', flags: '', severity: 'INFO', suggestion: '', hint_pass: '已检测到金额' },
+
+  // Group: 收款信息
+  { id: 'r4a', group: '收款信息', name: '收款户名', type: 'text', pattern: '长沙冉星信息科技有限公司', flags: '', severity: 'ERROR', suggestion: '收款户名应为「长沙冉星信息科技有限公司」' },
+  { id: 'r4b', group: '收款信息', name: '收款开户行', type: 'regex', pattern: '招商银行.*?(东塘|长沙)', flags: '', severity: 'WARN', suggestion: '开户行应为招商银行长沙分行东塘支行' },
+  { id: 'r4c', group: '收款信息', name: '收款账号', type: 'regex', pattern: '731\\s*906\\s*191\\s*710\\s*603|731906191710603', flags: '', severity: 'ERROR', suggestion: '收款账号应为 731906191710603' },
+
+  // Group: 签署信息
+  { id: 'r5a', group: '签署信息', name: '甲方签署日期', type: 'regex', pattern: '甲\\s*方.{0,200}?(\\d{4}[-年]\\d{1,2}[-月]\\d{1,2}日?)', flags: '', severity: 'WARN', suggestion: '甲方签署日期必须填写，格式 YYYY-MM-DD' },
+  { id: 'r5b', group: '签署信息', name: '乙方签署日期', type: 'regex', pattern: '乙\\s*方.{0,200}?(\\d{4}[-年]\\d{1,2}[-月]\\d{1,2}日?)', flags: '', severity: 'WARN', suggestion: '乙方签署日期必须填写，格式 YYYY-MM-DD' },
+
+  // Group: 条款检测
+  { id: 'r6a', group: '条款检测', name: '违约责任条款', type: 'regex', pattern: '违约(责任|赔偿|方应向|金的计算)', flags: '', severity: 'WARN', suggestion: '合同必须包含违约责任条款' },
+  { id: 'r6b', group: '条款检测', name: '保密条款', type: 'regex', pattern: '保密(义务|责任|信息|条款|协议)|商业秘密|不得.?泄露|不得.?披露', flags: '', severity: 'WARN', suggestion: '合同应包含保密条款' },
+  { id: 'r6c', group: '条款检测', name: '争议解决条款', type: 'regex', pattern: '争议|管辖|仲裁|诉讼|法院', flags: '', severity: 'WARN', suggestion: '合同应包含争议解决条款' },
+  { id: 'r6d', group: '条款检测', name: '付款条款', type: 'regex', pattern: '付款(方式|时间|期限|条件)|结算|支付|账期', flags: '', severity: 'WARN', suggestion: '合同应包含付款条款' },
+];
+
+function loadRules() {
+  try {
+    const saved = localStorage.getItem('contract_audit_rules');
+    if (saved) return JSON.parse(saved);
+  } catch (e) {}
+  return JSON.parse(JSON.stringify(DEFAULT_RULES));
+}
+
+function saveRules(rules) {
+  localStorage.setItem('contract_audit_rules', JSON.stringify(rules));
+  // Sync to backend if available
+  if (BACKEND.available) {
+    fetch(`${API}/rules`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rules })
+    }).catch(() => {});
+  }
+  showToast('规则已保存', 'success');
+}
+
+let auditRules = loadRules();
+
+// ============================================================
+// UTILS
+// ============================================================
+function timeout(ms) {
+  if (AbortSignal && AbortSignal.timeout) return AbortSignal.timeout(ms);
+  const ctrl = new AbortController();
+  setTimeout(() => ctrl.abort(new DOMException('Timeout', 'TimeoutError')), ms);
+  return ctrl.signal;
+}
+
+function escapeHtml(v) {
+  return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtSize(b) {
+  if (!b) return '0 B';
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+function showToast(msg, type) {
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ============================================================
+// RULE ENGINE
+// ============================================================
+function runRuleEngine(text) {
+  const results = [];
+  const enabledRules = auditRules.filter(r => r.enabled !== false);
+
+  for (const rule of enabledRules) {
+    let matched = false;
+    let matchDetail = '';
+
+    try {
+      if (rule.type === 'regex') {
+        const re = new RegExp(rule.pattern, rule.flags || '');
+        const m = re.exec(text);
+        if (m) {
+          matched = true;
+          matchDetail = m[1] || m[0] || '';
+        }
+      } else if (rule.type === 'text') {
+        // Support | as OR separator: split, escape each term, rejoin
+        const terms = rule.pattern.split('|').map(t => t.replace(/[.*+?^${}()[\]\\]/g, '\\$&'));
+        const re = new RegExp(terms.join('|'), rule.flags || '');
+        if (re.test(text)) matched = true;
+      } else if (rule.type === 'existence') {
+        const re = new RegExp(rule.pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), rule.flags || '');
+        matched = re.test(text);
+      }
+    } catch(e) {
+      console.warn('Rule error:', rule.name, e);
+      continue;
+    }
+
+    if (matched) {
+      results.push({
+        item: rule.name,
+        status: 'PASS',
+        detail: rule.hint_pass || matchDetail || '已匹配',
+        ruleId: rule.id
+      });
+    } else {
+      results.push({
+        item: rule.name,
+        status: rule.severity.toUpperCase(),
+        detail: rule.name + '未找到' + (matchDetail ? ': ' + matchDetail : ''),
+        suggestion: rule.suggestion || ('请检查' + rule.name),
+        ruleId: rule.id
+      });
+    }
+  }
+  return results;
+}
+
+// Also export for testing
+window.runRuleEngine = runRuleEngine;
+
+// ============================================================
+// BACKEND DETECTION
+// ============================================================
+async function checkHealth() {
+  const url = localStorage.getItem('backend_url') || API;
+  try {
+    const r = await fetch(url + '/health', { signal: timeout(3000) });
+    if (r.ok) {
+      BACKEND.available = true;
+      setBackendState(true);
+      return true;
+    }
+  } catch(e) {}
+  BACKEND.available = false;
+  setBackendState(false);
+  return false;
+}
+
+function setBackendState(online) {
+  const pill = document.getElementById('servicePill');
+  const text = document.getElementById('serviceText');
+  const badge = document.getElementById('modeBadge');
+  const formats = document.getElementById('formatBadge');
+  const hint = document.getElementById('dropHint');
+
+  if (online) {
+    pill.className = 'service-pill online';
+    text.textContent = '后端在线';
+    badge.className = 'mode-badge l2';
+    badge.textContent = 'L2 完整模式';
+    formats.textContent = 'PDF / DOCX / DOC';
+    hint.textContent = '支持 PDF / DOCX / DOC 格式（含扫描件 OCR）';
+    document.getElementById('tabPdf')?.classList.remove('disabled');
+    document.getElementById('tabDoc')?.classList.remove('disabled');
+  } else {
+    pill.className = 'service-pill offline';
+    text.textContent = '后端离线';
+    badge.className = 'mode-badge l0';
+    badge.textContent = 'L0 前端模式';
+    formats.textContent = 'DOCX';
+    hint.textContent = '仅支持 DOCX 格式（启动后端可解锁 PDF / DOC）';
+    document.getElementById('tabPdf')?.classList.add('disabled');
+    document.getElementById('tabDoc')?.classList.add('disabled');
+  }
+
+  // Update config panel too
+  const cd = document.getElementById('configServiceDot');
+  const cs = document.getElementById('configServiceStatus');
+  if (cd && cs) {
+    cd.style.background = online ? 'var(--accent)' : '#D1D5DB';
+    cs.textContent = online ? '已连接' : '未连接';
+  }
+}
+
+// ============================================================
+// AI AUDIT (DeepSeek)
+// ============================================================
+async function runAiAudit(text) {
+  const apiKey = localStorage.getItem('deepseek_api_key');
+  if (!apiKey) return null;
+
+  const focus = localStorage.getItem('audit_focus') || '重点审核违约责任条款、付款条款、保密条款、争议解决条款的合理性和完整性。';
+  const model = localStorage.getItem('ai_model') || 'deepseek-chat';
+
+  const prompt = `你是一名资深合同审核律师。请审核以下合同，重点：${focus}
+
+请按JSON格式返回（不要markdown包裹）：
+{
+  "overall": "PASS" | "WARN" | "ERROR",
+  "issues": [
+    {
+      "item": "问题名称",
+      "severity": "WARN" | "ERROR" | "INFO",
+      "detail": "问题描述",
+      "suggestion": "修改建议",
+      "relatedConcepts": ["格式条款", "违约责任"等]
+    }
+  ]
+}
+
+合同文本：
+${text.slice(0, 8000)}`;
+
+  const startTime = Date.now();
+  try {
+    const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: '你是资深合同审核律师。只返回JSON，不返回markdown包裹。' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.2,
+        max_tokens: 4096
+      }),
+      signal: timeout(60000)
+    });
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    if (!res.ok) throw new Error(`API ${res.status}`);
+
+    const data = await res.json();
+    const content = data.choices[0].message.content;
+
+    // Parse JSON
+    let parsed;
+    try {
+      parsed = JSON.parse(content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+    } catch(e) {
+      const m = content.match(/\{[\s\S]*\}/);
+      if (m) parsed = JSON.parse(m[0]);
+    }
+
+    if (parsed) {
+      document.getElementById('auditCost').textContent = `AI 耗时 ${elapsed}s`;
+      return parsed;
+    }
+    return null;
+  } catch(e) {
+    console.error('AI audit error:', e);
+    document.getElementById('auditCost').textContent = `AI 请求失败: ${e.message}`;
+    return null;
+  }
+}
+
+// ============================================================
+// CIVIL CODE MATCHING
+// ============================================================
+function matchCivilCodeForIssues(issues) {
+  if (!Array.isArray(issues) || !window.CivilCodeEvidence) return [];
+  const articles = window.CIVIL_CODE_ARTICLES || [];
+  if (!articles.length) return [];
+
+  const allMatches = [];
+  for (const issue of issues) {
+    const matches = CivilCodeEvidence.matchCivilCodeArticles(articles, {
+      sourceText: issue.item || '',
+      problem: issue.detail || '',
+      suggestion: issue.suggestion || ''
+    }, 2);
+    allMatches.push({ issue: issue.item, matches });
+  }
+  return allMatches;
+}
+
+// ============================================================
+// MAIN AUDIT FLOW
+// ============================================================
+async function runAudit(files) {
+  const file = files[0];
+  currentFile = file;
+  const ext = '.' + file.name.split('.').pop().toLowerCase();
+
+  if (!['.docx', '.doc', '.pdf'].includes(ext)) {
+    renderError('不支持该格式，请上传 PDF / DOCX / DOC 文件');
+    return;
+  }
+
+  // L0 mode only supports DOCX
+  if (!BACKEND.available && ext !== '.docx') {
+    renderError('前端模式仅支持 DOCX。请启动后端服务以支持 PDF / DOC 格式。');
+    return;
+  }
+
+  // Preserve original blob for download
+  if (ext === '.docx') {
+    originalDocxBlob = file;
+  }
+
+  // Show file item
+  const iconMap = {
+    '.pdf': { cls:'pdf', label:'PDF' },
+    '.docx': { cls:'docx', label:'DOCX' },
+    '.doc': { cls:'doc', label:'DOC' }
+  };
+  const icon = iconMap[ext] || iconMap['.docx'];
+
+  document.getElementById('fileList').innerHTML = `
+    <div class="file-item">
+      <div class="file-ext-icon ${icon.cls}">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </div>
+      <div class="file-info">
+        <div class="file-name">${escapeHtml(file.name)}</div>
+        <div class="file-meta">${fmtSize(file.size)}</div>
+        <div class="progress-bar"><div class="progress-fill" id="progBar" style="width:0%"></div></div>
+      </div>
+      <span class="file-status uploading" id="fileStatus">处理中</span>
+    </div>`;
+
+  document.getElementById('dropZone').classList.add('disabled');
+  renderLoading();
+  document.getElementById('editorSection').style.display = 'none';
+  document.getElementById('actionsBar').style.display = 'none';
+  document.getElementById('auditCost').textContent = '';
+
+  // Progress animation
+  let prog = 0;
+  const ticker = setInterval(() => {
+    prog = Math.min(prog + Math.random() * 10, 85);
+    const bar = document.getElementById('progBar');
+    if (bar) bar.style.width = prog + '%';
+  }, 200);
+
+  try {
+    let text, clauses = [];
+
+    // --- Extract text ---
+    if (BACKEND.available && ['.pdf', '.doc'].includes(ext)) {
+      // L2: Use backend for PDF/DOC
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`${API}/audit`, { method: 'POST', body: fd, signal: timeout(120000) });
+      if (!res.ok) throw new Error((await res.json().catch(()=>({}))).error || `HTTP ${res.status}`);
+      const data = await res.json();
+      text = data.text || '';
+      clauses = data.clauses || [];
+      originalDocxBlob = file;
+      // For .doc files, also try to convert to .docx for download
+      if (ext === '.doc') {
+        try {
+          const fd2 = new FormData();
+          fd2.append('file', file);
+          const convRes = await fetch(`${API}/convert`, { method: 'POST', body: fd2, signal: timeout(60000) });
+          if (convRes.ok) {
+            const docxBlob = await convRes.blob();
+            if (docxBlob.size > 1000) {
+              originalDocxBlob = docxBlob;
+              console.log('[audit] .doc converted to .docx, size:', docxBlob.size);
+            }
+          } else {
+            console.warn('[audit] .doc conversion failed, will build fresh DOCX on download');
+          }
+        } catch(e) {
+          console.warn('[audit] .doc conversion error:', e.message);
+        }
+      }
+    } else if (ext === '.docx' && BACKEND.available) {
+      // L2: Use backend for DOCX too (python-docx handles Chinese better than Mammoth.js)
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`${API}/extract`, { method: 'POST', body: fd, signal: timeout(60000) });
+      if (res.ok) {
+        const data = await res.json();
+        text = data.text || '';
+      } else {
+        // Fallback to Mammoth.js if backend fails
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        text = result.value;
+      }
+      originalDocxBlob = file;
+    } else if (ext === '.docx') {
+      // L0: Mammoth.js frontend only
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      text = result.value;
+      originalDocxBlob = file;
+    }
+
+    if (!text || !text.trim()) {
+      throw new Error('文件内容为空，可能是扫描件或加密文件');
+    }
+
+    // Sanitize text: remove null bytes and control characters (keep common whitespace)
+    text = text.replace(/\x00/g, '').replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '');
+    extractedText = text;
+
+    clearInterval(ticker);
+    document.getElementById('progBar').style.width = '100%';
+    document.getElementById('fileStatus').className = 'file-status done';
+    document.getElementById('fileStatus').textContent = '完成';
+
+    // --- Layer 1: Rule Engine ---
+    const ruleResults = runRuleEngine(text);
+
+    // --- Clause Detection (L2) or frontend ---
+    let clauseResults = clauses;
+    if (!clauseResults.length) {
+      clauseResults = detectClausesFrontend(text);
+    }
+
+    // --- Layer 2: AI Audit ---
+    const aiResult = await runAiAudit(text);
+
+    // --- Layer 3: Civil Code ---
+    let civilMatches = [];
+    if (aiResult && aiResult.issues) {
+      civilMatches = matchCivilCodeForIssues(aiResult.issues);
+    }
+
+    // --- Merge results ---
+    const ruleErrors = ruleResults.filter(r => r.status === 'ERROR').length;
+    const ruleWarns = ruleResults.filter(r => r.status === 'WARN').length;
+    const aiOverall = aiResult?.overall || 'PASS';
+
+    const overall = ruleErrors > 0 ? 'ERROR'
+      : (ruleWarns > 0 || aiOverall === 'WARN') ? 'WARN'
+      : 'PASS';
+
+    auditResult = {
+      file: file.name,
+      overall,
+      ruleResults,
+      aiResult,
+      civilMatches,
+      clauseResults,
+      text
+    };
+
+    renderResult(auditResult);
+
+    // Show editor
+    document.getElementById('editorSection').style.display = '';
+    initQuillEditor();
+
+  } catch(e) {
+    clearInterval(ticker);
+    document.getElementById('fileStatus').className = 'file-status fail';
+    document.getElementById('fileStatus').textContent = '失败';
+    renderError(e.message || '处理失败');
+    setTimeout(() => document.getElementById('dropZone').classList.remove('disabled'), 2000);
+  }
+}
+
+// ============================================================
+// FRONTEND CLAUSE DETECTION (L0 fallback)
+// ============================================================
+function detectClausesFrontend(text) {
+  const clauseRules = [
+    { type: '廉洁/反腐条款', keywords: ['廉洁','反腐','商业行为准则','反腐败','廉洁从业'] },
+    { type: '违约金条款', keywords: ['违约金','违约赔偿','违约责任','逾期付款违约金'] },
+    { type: '付款条款', keywords: ['付款方式','付款时间','付款期限','结算方式','账期','首付','尾款','预付款'] },
+    { type: '保密条款', keywords: ['保密义务','保密责任','商业秘密','保密信息','不得泄露','知识产权'] },
+  ];
+
+  return clauseRules.map(rule => {
+    const items = [];
+    for (const kw of rule.keywords) {
+      const re = new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g');
+      let m, count = 0;
+      while ((m = re.exec(text)) !== null && count < 3) {
+        items.push({ text: text.slice(Math.max(0, m.index-30), m.index+kw.length+30).replace(/\n/g,' '), keyword: kw });
+        count++;
+      }
+    }
+    return { type: rule.type, items: items.slice(0, 3) };
+  });
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderEmpty() {
+  document.getElementById('resultPanel').innerHTML = `
+    <div class="result-state">
+      <div class="state-hero idle">
+        <div class="state-ring">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="state-label" style="color:var(--accent-mid);">等待上传</div>
+        <div class="state-sub">上传合同文件开始三层审核</div>
+      </div>
+    </div>
+    <div class="empty-state">
+      <div class="empty-title">🛡️ 规则引擎 + 🤖 AI增强 + ⚖️ 民法典背书</div>
+      <div class="empty-desc">第一层：正则规则精确匹配 · 第二层：民法典依据核对 · 第三层：AI 语义风险分析</div>
+    </div>`;
+}
+
+function renderLoading() {
+  document.getElementById('resultPanel').innerHTML = `
+    <div style="padding:24px 22px;text-align:center;background:var(--bg);">
+      <div class="skeleton skel-ring"></div>
+      <div class="skeleton skel-label"></div>
+      <div class="skeleton skel-sub"></div>
+    </div>
+    <div class="skeleton-rows">
+      <div class="skeleton skel-row w-80"></div>
+      <div class="skeleton skel-row w-60"></div>
+      <div class="skeleton skel-row w-40"></div>
+      <div style="height:8px;"></div>
+      <div class="skeleton skel-row w-80"></div>
+      <div class="skeleton skel-row w-60"></div>
+    </div>`;
+}
+
+function renderError(msg) {
+  document.getElementById('resultPanel').innerHTML = `
+    <div class="error-state">
+      <div class="error-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <div class="error-text"><strong>审核失败</strong><br>${escapeHtml(msg)}</div>
+    </div>`;
+}
+
+function renderResult(data) {
+  document.getElementById('dropZone').classList.remove('disabled');
+  document.getElementById('actionsBar').style.display = 'flex';
+
+  const pass = data.ruleResults.filter(r => r.status === 'PASS');
+  const warn = data.ruleResults.filter(r => r.status === 'WARN');
+  const error = data.ruleResults.filter(r => r.status === 'ERROR');
+
+  const stateCls = data.overall === 'PASS' ? 'pass' : data.overall === 'ERROR' ? 'error' : 'warn';
+  const label = data.overall === 'PASS' ? '审核通过' : data.overall === 'ERROR' ? '存在错误' : '存在警告';
+  const sub = `${pass.length} 通过 · ${warn.length} 警告 · ${error.length} 错误`;
+
+  const iconSvg = data.overall === 'PASS'
+    ? '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>'
+    : data.overall === 'ERROR'
+    ? '<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+    : '<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+
+  let html = `<div class="result-state">`;
+  html += `<div class="state-hero ${stateCls}">`;
+  html += `<div class="state-ring">${iconSvg}</div>`;
+  html += `<div class="state-label">${label}</div>`;
+  html += `<div class="state-sub">${sub}</div>`;
+  html += `<div class="state-file">${escapeHtml(data.file)}</div>`;
+  html += `</div></div>`;
+
+  // Layer 1: Rule Engine Results
+  html += `<div class="result-section">`;
+  html += `<div class="section-label">🔍 第一层：规则引擎 <span class="layer-tag">${data.ruleResults.length}项</span></div>`;
+
+  if (pass.length) {
+    pass.forEach(r => {
+      html += `<div class="result-row"><div class="row-dot pass"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div class="row-content"><div class="row-name">${escapeHtml(r.item)}</div><div class="row-detail">${escapeHtml(r.detail||'')}</div></div></div>`;
+    });
+  }
+  if (warn.length) {
+    warn.forEach(r => {
+      html += `<div class="result-row"><div class="row-dot warn"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="row-content"><div class="row-name">${escapeHtml(r.item)}</div><div class="row-detail">${escapeHtml(r.detail||'')}</div>${r.suggestion ? `<div class="row-hint">💡 ${escapeHtml(r.suggestion)}</div>` : ''}</div></div>`;
+    });
+  }
+  if (error.length) {
+    error.forEach(r => {
+      html += `<div class="result-row"><div class="row-dot error"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="row-content"><div class="row-name">${escapeHtml(r.item)}</div><div class="row-detail">${escapeHtml(r.detail||'')}</div>${r.suggestion ? `<div class="row-hint">💡 ${escapeHtml(r.suggestion)}</div>` : ''}</div></div>`;
+    });
+  }
+  html += `</div>`;
+
+  // Clauses (after rule engine)
+  if (data.clauseResults && data.clauseResults.length) {
+    html += `<div class="clause-block">`;
+    html += `<div class="section-label">📋 条款检测 <span class="layer-tag">${data.clauseResults.length}类</span></div>`;
+    data.clauseResults.forEach(c => {
+      html += `<div class="clause-type">${escapeHtml(c.type)}</div>`;
+      if (c.items && c.items.length) {
+        c.items.forEach(item => {
+          const text = escapeHtml(item.text||'').replace(new RegExp(escapeHtml(item.keyword||''), 'g'), '<span class="kw">$&</span>');
+          html += `<div class="clause-item">${text}</div>`;
+        });
+      } else {
+        html += `<div style="font-size:10px;color:var(--text-tertiary);padding:4px 0;">未检测到相关内容</div>`;
+      }
+    });
+    html += `</div>`;
+  }
+
+  // Layer 2: Civil Code
+  if (data.civilMatches.length) {
+    html += `<div class="result-section">`;
+    const totalMatches = data.civilMatches.reduce((s, c) => s + c.matches.length, 0);
+    html += `<div class="section-label">⚖️ 第二层：民法典依据 <span class="layer-tag">${totalMatches}条</span></div>`;
+    data.civilMatches.forEach(cm => {
+      if (cm.matches.length) {
+        html += `<div style="padding:0 22px 6px;font-size:11px;color:var(--text-secondary);">📎 ${escapeHtml(cm.issue)}</div>`;
+        html += CivilCodeEvidence.renderCivilCodeEvidence(cm.matches);
+      }
+    });
+    html += `</div>`;
+  }
+
+  // Layer 3: AI Results
+  if (data.aiResult && data.aiResult.issues && data.aiResult.issues.length) {
+    html += `<div class="result-section">`;
+    html += `<div class="section-label">🤖 第三层：AI 语义分析 <span class="layer-tag">${data.aiResult.issues.length}项</span></div>`;
+    data.aiResult.issues.forEach(issue => {
+      html += `<div class="ai-issue-block">
+        <div class="ai-badge">AI 分析</div>
+        <div style="font-weight:600;font-size:12px;margin-bottom:4px;">${escapeHtml(issue.item)} ${issue.severity ? '<span style="font-size:9px;color:var(--'+(issue.severity==='ERROR'?'error':issue.severity==='WARN'?'warn-text':'accent')+');">['+issue.severity+']</span>' : ''}</div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">${escapeHtml(issue.detail||'')}</div>
+        ${issue.suggestion ? `<div class="row-hint">💡 ${escapeHtml(issue.suggestion)}</div>` : ''}
+      </div>`;
+    });
+    html += `</div>`;
+  } else if (!data.aiResult) {
+    html += `<div class="result-section">`;
+    html += `<div class="section-label">🤖 第三层：AI 语义分析 <span class="layer-tag">未启用</span></div>`;
+    html += `<div style="padding:8px 22px 14px;font-size:11px;color:var(--text-tertiary);">配置 DeepSeek API Key 后启用 AI 语义审核</div>`;
+    html += `</div>`;
+  }
+
+  document.getElementById('resultPanel').innerHTML = html;
+}
+
+// ============================================================
+// QUILL EDITOR
+// ============================================================
+function initQuillEditor() {
+  const container = document.getElementById('quillEditor');
+  if (!container || typeof Quill === 'undefined') return;
+
+  // If already initialized, just update the text content
+  if (quillEditor) {
+    if (extractedText) {
+      quillEditor.setText('');
+      quillEditor.setText(extractedText);
+      quillEditor.setSelection(0, 0);
+    }
+    quillLastText = quillEditor.getText();
+    return;
+  }
+
+  quillEditor = new Quill('#quillEditor', {
+    theme: 'snow',
+    placeholder: '合同原文...',
+    modules: {
+      toolbar: { container: '#quillToolbar' }
+    }
+  });
+
+  // Load extracted text
+  if (extractedText) {
+    quillEditor.setText(extractedText);
+    quillEditor.setSelection(0, 0);
+  }
+
+  // Setup track-changes listener
+  quillLastText = quillEditor.getText();
+  setupTrackChanges();
+}
+
+// ============================================================
+// ANNOTATION SYSTEM (批注 & 修订标记)
+// ============================================================
+const annoColors = {
+  comment: { bg: '#FFF9C4', css: 'annotation-comment' },
+  deletion: { bg: '#FFEBEE', css: 'annotation-deletion' },
+  addition: { bg: '#E8F5E9', css: 'annotation-addition' }
+};
+
+function addAnnotation(type) {
+  if (!quillEditor) return showToast('请先上传合同', 'info');
+  const sel = quillEditor.getSelection();
+  if (!sel || sel.length === 0) return showToast('请先选中一段文字', 'info');
+
+  const text = quillEditor.getText(sel.index, sel.length).trim();
+  if (!text) return showToast('选中区域无文字', 'info');
+
+  if (type === 'deletion') {
+    // Mark for deletion: red background + strikethrough
+    quillEditor.formatText(sel.index, sel.length, { background: '#FFEBEE', strike: true, color: '#C62828' });
+  } else if (type === 'addition') {
+    // Mark as addition: green background + underline
+    quillEditor.formatText(sel.index, sel.length, { background: '#E8F5E9', underline: true, color: '#2E7D32' });
+  } else if (type === 'comment') {
+    const note = prompt('请输入批注内容：');
+    if (!note) return;
+    quillEditor.formatText(sel.index, sel.length, { background: '#FFF9C4' });
+    annotations.push({
+      id: 'a' + Date.now(),
+      index: sel.index,
+      length: sel.length,
+      text: text.slice(0, 80),
+      type: 'comment',
+      note: note,
+      time: new Date().toLocaleString('zh-CN')
+    });
+  }
+
+  // For non-comment marks, also store in annotations for the sidebar
+  if (type === 'deletion' || type === 'addition') {
+    const existing = annotations.find(a => a.index === sel.index && a.type === type);
+    if (!existing) {
+      annotations.push({
+        id: 'a' + Date.now(),
+        index: sel.index,
+        length: sel.length,
+        text: text.slice(0, 80),
+        type: type,
+        note: type === 'deletion' ? '建议删除' : '建议新增',
+        time: new Date().toLocaleString('zh-CN')
+      });
+    }
+  }
+
+  renderAnnotationPanel();
+  showToast(type === 'comment' ? '批注已添加' : '标记已应用', 'success');
+}
+
+function clearAnnotation() {
+  if (!quillEditor) return;
+  const sel = quillEditor.getSelection();
+  if (!sel || sel.length === 0) return showToast('请先选中已标记的区域', 'info');
+
+  // Remove formatting
+  quillEditor.formatText(sel.index, sel.length, { background: false, strike: false, underline: false, color: false });
+
+  // Remove from annotations list
+  annotations = annotations.filter(a => !(a.index === sel.index && a.length === sel.length));
+  renderAnnotationPanel();
+  showToast('标记已清除', 'info');
+}
+
+function renderAnnotationPanel() {
+  const panel = document.getElementById('annotationPanel');
+  const list = document.getElementById('annotationList');
+  if (!panel || !list) return;
+
+  if (annotations.length === 0) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = '';
+  const typeNames = { comment: '💬 批注', deletion: '❌ 建议删除', addition: '✅ 建议新增' };
+
+  list.innerHTML = annotations.map(a => `
+    <div class="anno-item" onclick="jumpToAnnotation(${a.index}, ${a.length})" title="点击定位">
+      <span class="anno-type ${a.type}">${typeNames[a.type] || a.type}</span>
+      <button class="anno-del" onclick="event.stopPropagation();removeAnnotation('${a.id}')" title="删除">✕</button>
+      <div class="anno-quote">「${escapeHtml(a.text)}」</div>
+      ${a.note ? `<div class="anno-note">${escapeHtml(a.note)}</div>` : ''}
+      <div style="font-size:9px;color:var(--text-tertiary);margin-top:2px;">${a.time}</div>
+    </div>
+  `).join('');
+}
+
+function jumpToAnnotation(index, length) {
+  if (!quillEditor) return;
+  quillEditor.setSelection(index, length);
+  // Scroll the Quill editor to the annotation
+  const bounds = quillEditor.getBounds(index);
+  if (bounds) {
+    const editorEl = document.getElementById('quillEditor');
+    if (editorEl) {
+      editorEl.querySelector('.ql-editor').scrollTop = bounds.top - 60;
+    }
+  }
+}
+
+function removeAnnotation(id) {
+  const a = annotations.find(x => x.id === id);
+  if (a && quillEditor) {
+    // Clear formatting
+    quillEditor.formatText(a.index, a.length, { background: false, strike: false, underline: false, color: false });
+  }
+  annotations = annotations.filter(x => x.id !== id);
+  renderAnnotationPanel();
+}
+
+// Re-apply annotations after text changes (simplified: reapply on demand)
+function reapplyAnnotations() {
+  if (!quillEditor) return;
+  annotations.forEach(a => {
+    const colors = { comment: { background: '#FFF9C4' }, deletion: { background: '#FFEBEE', strike: true, color: '#C62828' }, addition: { background: '#E8F5E9', underline: true, color: '#2E7D32' } };
+    try {
+      quillEditor.formatText(a.index, a.length, colors[a.type] || {});
+    } catch(e) { /* ignore out-of-range */ }
+  });
+}
+
+// Button event listeners
+document.getElementById('btnAddComment').addEventListener('click', () => addAnnotation('comment'));
+document.getElementById('btnMarkDelete').addEventListener('click', () => addAnnotation('deletion'));
+document.getElementById('btnMarkAdd').addEventListener('click', () => addAnnotation('addition'));
+document.getElementById('btnClearMark').addEventListener('click', clearAnnotation);
+
+// ============================================================
+// TRACK CHANGES (修订模式) — auto-annotate all edits
+// ============================================================
+let trackChangesOn = false;
+let quillLastText = '';
+
+function toggleTrackChanges() {
+  trackChangesOn = !trackChangesOn;
+  const btn = document.getElementById('btnTrackChanges');
+  const badge = document.getElementById('trackBadge');
+  if (trackChangesOn) {
+    btn.style.background = 'var(--success)';
+    btn.style.color = '#fff';
+    btn.style.borderColor = 'var(--success)';
+    btn.textContent = '📝 修订中';
+    badge.style.display = '';
+    quillLastText = quillEditor ? quillEditor.getText() : '';
+    showToast('修订模式已开启 — 所有修改将自动标记', 'info');
+  } else {
+    btn.style.background = 'var(--surface)';
+    btn.style.color = 'var(--text-secondary)';
+    btn.style.borderColor = 'var(--border)';
+    btn.textContent = '📝 修订模式';
+    badge.style.display = 'none';
+    showToast('修订模式已关闭', 'info');
+  }
+}
+
+function setupTrackChanges() {
+  if (!quillEditor) return;
+
+  quillEditor.on('text-change', (delta, oldDelta, source) => {
+    if (source !== 'user' || !trackChangesOn) return;
+
+    // Disable temporarily to avoid recursive events from our own formatting
+    trackChangesOn = false;
+
+    try {
+      let cursor = 0;
+      delta.ops.forEach(op => {
+        if (op.insert && typeof op.insert === 'string') {
+          const inserted = op.insert;
+          const len = inserted.length;
+          // Mark insertion as addition (green)
+          quillEditor.formatText(cursor, len, { background: '#E8F5E9', underline: true, color: '#2E7D32' }, 'silent');
+          annotations.push({
+            id: 'a' + Date.now() + Math.random(),
+            index: cursor,
+            length: len,
+            text: inserted.slice(0, 80),
+            type: 'addition',
+            note: '新增内容',
+            time: new Date().toLocaleString('zh-CN')
+          });
+          cursor += len;
+        } else if (op.delete !== undefined) {
+          // Deleted text: get from previous state
+          const deleted = quillLastText.slice(cursor, cursor + op.delete);
+          if (deleted.trim()) {
+            annotations.push({
+              id: 'a' + Date.now() + Math.random(),
+              index: cursor,
+              length: op.delete,
+              text: deleted.slice(0, 80),
+              type: 'deletion',
+              note: '已删除',
+              time: new Date().toLocaleString('zh-CN')
+            });
+          }
+        } else if (op.retain) {
+          cursor += op.retain;
+          // Check for format changes on retained text
+          if (op.attributes) {
+            const attrKeys = Object.keys(op.attributes).filter(k => !['background','color','strike','underline'].includes(k));
+            if (attrKeys.length && op.retain > 0) {
+              const formatNote = '格式变更: ' + attrKeys.map(k => `${k}=${op.attributes[k]}`).join(', ');
+              const existing = annotations.find(a =>
+                a.type === 'comment' && a.index === cursor - op.retain && a.note === formatNote
+              );
+              if (!existing) {
+                annotations.push({
+                  id: 'a' + Date.now() + Math.random(),
+                  index: cursor - op.retain,
+                  length: op.retain,
+                  text: quillEditor.getText(cursor - op.retain, Math.min(op.retain, 80)),
+                  type: 'comment',
+                  note: formatNote,
+                  time: new Date().toLocaleString('zh-CN')
+                });
+              }
+            }
+          }
+        }
+      });
+    } finally {
+      trackChangesOn = true;
+      quillLastText = quillEditor.getText();
+      renderAnnotationPanel();
+    }
+  });
+}
+
+function clearAllAnnotations() {
+  if (!confirm('确定清除所有批注和修订标记？')) return;
+  if (quillEditor) {
+    const totalLen = quillEditor.getLength();
+    quillEditor.formatText(0, totalLen, { background: false, strike: false, underline: false, color: false }, 'silent');
+  }
+  annotations = [];
+  renderAnnotationPanel();
+  showToast('已清除所有批注', 'info');
+}
+
+document.getElementById('btnTrackChanges').addEventListener('click', toggleTrackChanges);
+
+// Fullscreen toggle
+let isFullscreen = false;
+document.getElementById('btnFullscreen').addEventListener('click', () => {
+  isFullscreen = !isFullscreen;
+  const card = document.getElementById('editorCard');
+  const btn = document.getElementById('btnFullscreen');
+  if (isFullscreen) {
+    card.classList.add('fullscreen');
+    btn.textContent = '✕'; btn.title = '退出全屏';
+    btn.style.background = 'var(--accent)'; btn.style.color = '#fff'; btn.style.borderColor = 'var(--accent)';
+  } else {
+    card.classList.remove('fullscreen');
+    btn.textContent = '⛶'; btn.title = '全屏';
+    btn.style.background = 'var(--surface)'; btn.style.color = 'var(--text-secondary)'; btn.style.borderColor = 'var(--border)';
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && isFullscreen) { document.getElementById('btnFullscreen').click(); }
+});
+
+// ============================================================
+// DOCX Export with OOXML annotations (批注 & 修订)
+// ============================================================
+const OOXML_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+const OOXML_R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+
+function buildTextRunMap(docXmlText) {
+  // Parse document.xml and build a position map of all text runs
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(docXmlText, 'text/xml');
+  const runs = [];
+  const wNs = OOXML_NS;
+
+  let charPos = 0;
+  const allParas = doc.getElementsByTagNameNS(wNs, 'p');
+  for (const p of allParas) {
+    const runEls = p.getElementsByTagNameNS(wNs, 'r');
+    for (const r of runEls) {
+      const tEls = r.getElementsByTagNameNS(wNs, 't');
+      let runText = '';
+      for (const t of tEls) {
+        runText += t.textContent || '';
+      }
+      if (runText.length > 0) {
+        runs.push({
+          run: r,
+          para: p,
+          text: runText,
+          start: charPos,
+          end: charPos + runText.length
+        });
+        charPos += runText.length;
+      }
+    }
+    // Paragraph break (newline between paragraphs in plain text)
+    charPos += 1;
+  }
+  return { runs, totalChars: charPos, xmlDoc: doc, wNs };
+}
+
+function wrapRunWithTrackChange(runEl, type, annoId) {
+  const wNs = OOXML_NS;
+  const doc = runEl.ownerDocument;
+  const wrapper = doc.createElementNS(wNs, type === 'deletion' ? 'del' : 'ins');
+  wrapper.setAttributeNS(wNs, 'w:id', String(annoId));
+  wrapper.setAttributeNS(wNs, 'w:author', '合同审核工具');
+  wrapper.setAttributeNS(wNs, 'w:date', new Date().toISOString());
+
+  // Style the run properties
+  const rPr = runEl.getElementsByTagNameNS(wNs, 'rPr')[0] || doc.createElementNS(wNs, 'rPr');
+  if (type === 'deletion') {
+    const strike = doc.createElementNS(wNs, 'strike');
+    rPr.appendChild(strike);
+    const color = doc.createElementNS(wNs, 'color');
+    color.setAttributeNS(wNs, 'w:val', 'FF0000');
+    rPr.appendChild(color);
+  } else {
+    const u = doc.createElementNS(wNs, 'u');
+    u.setAttributeNS(wNs, 'w:val', 'single');
+    rPr.appendChild(u);
+    const color = doc.createElementNS(wNs, 'color');
+    color.setAttributeNS(wNs, 'w:val', '008000');
+    rPr.appendChild(color);
+  }
+  if (!runEl.getElementsByTagNameNS(wNs, 'rPr').length) {
+    runEl.insertBefore(rPr, runEl.firstChild);
+  }
+  // Replace run text element for deletion type
+  if (type === 'deletion') {
+    const tEls = runEl.getElementsByTagNameNS(wNs, 't');
+    for (const t of tEls) {
+      const delText = doc.createElementNS(wNs, 'delText');
+      delText.setAttribute('xml:space', 'preserve');
+      delText.textContent = t.textContent;
+      t.parentNode.replaceChild(delText, t);
+    }
+  }
+
+  runEl.parentNode.insertBefore(wrapper, runEl);
+  wrapper.appendChild(runEl);
+  return wrapper;
+}
+
+function addCommentReference(runEl, commentId) {
+  const wNs = OOXML_NS;
+  const doc = runEl.ownerDocument;
+  let rPr = runEl.getElementsByTagNameNS(wNs, 'rPr')[0];
+  if (!rPr) {
+    rPr = doc.createElementNS(wNs, 'rPr');
+    runEl.insertBefore(rPr, runEl.firstChild);
+  }
+  const highlight = doc.createElementNS(wNs, 'highlight');
+  highlight.setAttributeNS(wNs, 'w:val', 'yellow');
+  rPr.appendChild(highlight);
+  const ref = doc.createElementNS(wNs, 'commentReference');
+  ref.setAttributeNS(wNs, 'w:id', String(commentId));
+  rPr.appendChild(ref);
+}
+
+function buildCommentsXml(commentAnnotations) {
+  const wNs = OOXML_NS;
+  let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n`;
+  xml += `<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">\n`;
+  commentAnnotations.forEach((a, i) => {
+    const escaped = (a.note || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    xml += `  <w:comment w:id="${i}" w:author="合同审核工具" w:date="${new Date().toISOString()}">\n`;
+    xml += `    <w:p><w:r><w:t>${escaped}</w:t></w:r></w:p>\n`;
+    xml += `  </w:comment>\n`;
+  });
+  xml += `</w:comments>`;
+  return xml;
+}
+
+async function downloadAnnotatedDocx() {
+  if (!originalDocxBlob) {
+    showToast('需要先上传文件', 'error');
+    return;
+  }
+  if (!annotations.length && !auditResult) {
+    showToast('暂无批注或审核结果可导出', 'info');
+    return;
+  }
+
+  // .doc / .pdf files can't be used as DOCX template — build fresh DOCX from scratch
+  const isDocx = currentFile?.name?.toLowerCase().endsWith('.docx');
+  if (!isDocx) {
+    await downloadFreshDocx();
+    return;
+  }
+
+  try {
+    const zip = await JSZip.loadAsync(originalDocxBlob);
+    const docXmlFile = zip.file('word/document.xml');
+    if (!docXmlFile) throw new Error('找不到 document.xml');
+
+    let docXmlText = await docXmlFile.async('text');
+    const { runs, xmlDoc, wNs } = buildTextRunMap(docXmlText);
+
+    if (runs.length === 0) throw new Error('无法解析文档结构');
+
+    // Separate annotations by type
+    const commentAnnos = annotations.filter(a => a.type === 'comment');
+    const deletionAnnos = annotations.filter(a => a.type === 'deletion');
+    const additionAnnos = annotations.filter(a => a.type === 'addition');
+
+    // Apply track changes (deletions & additions)
+    let trackId = 0;
+    for (const anno of [...deletionAnnos, ...additionAnnos]) {
+      const affectedRuns = runs.filter(r =>
+        !(r.end <= anno.index || r.start >= anno.index + anno.length)
+      );
+      for (const run of affectedRuns) {
+        wrapRunWithTrackChange(run.run, anno.type, trackId);
+      }
+      trackId++;
+    }
+
+    // Apply comment references
+    commentAnnos.forEach((anno, i) => {
+      const affectedRuns = runs.filter(r =>
+        !(r.end <= anno.index || r.start >= anno.index + anno.length)
+      );
+      for (const run of affectedRuns) {
+        addCommentReference(run.run, i);
+      }
+    });
+
+    // Serialize modified document.xml
+    const serializer = new XMLSerializer();
+    let newDocXml = serializer.serializeToString(xmlDoc);
+
+    // Fix XML declaration
+    if (!newDocXml.startsWith('<?xml')) {
+      newDocXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + newDocXml;
+    }
+
+    zip.file('word/document.xml', newDocXml);
+
+    // Create comments.xml if there are comments
+    if (commentAnnos.length > 0) {
+      zip.file('word/comments.xml', buildCommentsXml(commentAnnos));
+
+      // Update [Content_Types].xml
+      const ctFile = zip.file('[Content_Types].xml');
+      if (ctFile) {
+        let ctXml = await ctFile.async('text');
+        if (!ctXml.includes('comments.xml')) {
+          ctXml = ctXml.replace('</Types>',
+            ' <Override PartName="/word/comments.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"/>\n</Types>');
+          zip.file('[Content_Types].xml', ctXml);
+        }
+      }
+
+      // Update word/_rels/document.xml.rels
+      const relsFile = zip.file('word/_rels/document.xml.rels');
+      if (relsFile) {
+        let relsXml = await relsFile.async('text');
+        if (!relsXml.includes('comments.xml')) {
+          relsXml = relsXml.replace('</Relationships>',
+            ' <Relationship Id="rIdComments" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="comments.xml"/>\n</Relationships>');
+          zip.file('word/_rels/document.xml.rels', relsXml);
+        }
+      }
+    }
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (currentFile?.name || 'contract').replace(/\.\w+$/, '') + '_审核标注.docx';
+    a.click();
+    URL.revokeObjectURL(url);
+
+    const summary = [];
+    if (commentAnnos.length) summary.push(`${commentAnnos.length}条批注`);
+    if (deletionAnnos.length) summary.push(`${deletionAnnos.length}处删除标记`);
+    if (additionAnnos.length) summary.push(`${additionAnnos.length}处新增标记`);
+    showToast(`已导出：${summary.join('、')} —— 用 Word 打开即可看到`, 'success');
+  } catch(e) {
+    console.error('Annotated DOCX error:', e);
+    // Fallback to HTML
+    const html = generateAnnotatedHtml();
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (currentFile?.name || 'contract').replace(/\.\w+$/, '') + '_审核标注.html';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('DOCX 导出失败，已导出 HTML 版本', 'info');
+  }
+}
+
+function generateAnnotatedHtml() {
+  let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>合同审核标注</title>
+<style>body{font-family:sans-serif;line-height:1.8;max-width:800px;margin:40px auto;padding:20px}
+.problem{background:#ffebee;color:#c62828;font-weight:bold;padding:0 2px;border-radius:2px}
+.note{background:#fff3e0;color:#e65100;font-size:12px;padding:4px 8px;margin:4px 0 4px 16px;border-left:3px solid #ff9800}
+.law{background:#f1f8e9;border-left:3px solid #7cb342;padding:4px 8px;margin:4px 0 4px 16px;font-size:12px;color:#33691e}
+.comment-hl{background:#FFF9C4;border-bottom:2px dotted #F9A825}
+.del-mark{background:#FFEBEE;color:#C62828;text-decoration:line-through}
+.add-mark{background:#E8F5E9;color:#2E7D32;text-decoration:underline}
+</style></head><body><h1>合同审核标注</h1>`;
+
+  if (auditResult) {
+    html += `<p><strong>审核结果：</strong>${auditResult.overall}</p><hr>`;
+    html += `<h2>规则引擎审核</h2><ul>`;
+    auditResult.ruleResults.forEach(r => {
+      html += `<li><strong>${escapeHtml(r.item)}</strong>: ${r.status} - ${escapeHtml(r.detail||'')}${r.suggestion ? '<br><span class="note">'+escapeHtml(r.suggestion)+'</span>' : ''}</li>`;
+    });
+    html += `</ul>`;
+    if (auditResult.aiResult?.issues) {
+      html += `<h2>AI 语义分析</h2><ul>`;
+      auditResult.aiResult.issues.forEach(i => {
+        html += `<li><strong>${escapeHtml(i.item)}</strong>: ${escapeHtml(i.detail||'')}${i.suggestion ? '<br><span class="note">'+escapeHtml(i.suggestion)+'</span>' : ''}</li>`;
+      });
+      html += `</ul>`;
+    }
+  }
+
+  // Render annotations
+  if (annotations.length) {
+    html += `<h2>批注与修订</h2><ul>`;
+    annotations.forEach(a => {
+      const typeLabel = a.type === 'comment' ? '💬 批注' : a.type === 'deletion' ? '❌ 建议删除' : '✅ 建议新增';
+      html += `<li><strong>${typeLabel}</strong>: 「${escapeHtml(a.text)}」${a.note ? ' — ' + escapeHtml(a.note) : ''}</li>`;
+    });
+    html += `</ul>`;
+  }
+
+  html += `<h2>合同原文（含标注）</h2>`;
+  if (quillEditor) {
+    const editorHtml = quillEditor.root.innerHTML;
+    html += `<div style="line-height:1.8;max-width:800px;">${editorHtml}</div>`;
+  } else {
+    html += `<pre style="white-space:pre-wrap;background:#fafafa;padding:16px;border-radius:8px;">${escapeHtml(extractedText||'')}</pre>`;
+  }
+  html += `</body></html>`;
+  return html;
+}
+
+async function downloadModifiedDocx() {
+  if (!quillEditor) {
+    showToast('请先上传并加载合同原文', 'error');
+    return;
+  }
+
+  const content = quillEditor.getText();
+  if (originalDocxBlob && typeof JSZip !== 'undefined') {
+    try {
+      const zip = await JSZip.loadAsync(originalDocxBlob);
+      const docXml = zip.file('word/document.xml');
+      if (docXml) {
+        let xml = await docXml.async('text');
+        // Replace all text runs with cleaned content (no annotations)
+        const cleanText = content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        // Simple approach: replace first text run, remove rest
+        const parts = xml.split(/(<w:t[^>]*>[\s\S]*?<\/w:t>)/g);
+        let found = false;
+        let result = '';
+        for (const part of parts) {
+          if (part.match(/^<w:t/)) {
+            if (!found) {
+              result += `<w:t xml:space="preserve">${cleanText}</w:t>`;
+              found = true;
+            }
+            // Skip other text runs (they'll be empty since we collapsed all text into one)
+          } else {
+            result += part;
+          }
+        }
+        if (found) {
+          zip.file('word/document.xml', result);
+
+          // Remove comments.xml if it exists (clean version shouldn't have annotations)
+          zip.remove('word/comments.xml');
+
+          const blob = await zip.generateAsync({ type: 'blob' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = (currentFile?.name || 'contract').replace(/\.\w+$/, '') + '_修改版.docx';
+          a.click();
+          URL.revokeObjectURL(url);
+          showToast('修改版 DOCX 已下载（含批注和修订标记）', 'success');
+          return;
+        }
+      }
+    } catch(e) {
+      console.error('DOCX modify error:', e);
+    }
+  }
+
+  // Fallback: HTML download with annotations rendered
+  const html = generateAnnotatedHtml();
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (currentFile?.name || 'contract').replace(/\.\w+$/, '') + '_修改版.html';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('已导出 HTML 版本', 'info');
+}
+
+// Build a fresh DOCX from scratch for .doc/.pdf files
+async function downloadFreshDocx() {
+  if (typeof JSZip === 'undefined') { showToast('JSZip 未加载', 'error'); return; }
+
+  const text = quillEditor ? quillEditor.getText() : (extractedText || '');
+  const htmlContent = quillEditor ? quillEditor.root.innerHTML : text.replace(/\n/g, '<br>');
+
+  // Build minimal DOCX
+  const zip = new JSZip();
+
+  // [Content_Types].xml
+  zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/comments.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"/>
+</Types>`);
+
+  // _rels/.rels
+  zip.file('_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`);
+
+  // word/_rels/document.xml.rels
+  let docRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`;
+  if (annotations.filter(a => a.type === 'comment').length > 0) {
+    docRels += '\n  <Relationship Id="rIdComments" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="comments.xml"/>';
+  }
+  docRels += '\n</Relationships>';
+  zip.file('word/_rels/document.xml.rels', docRels);
+
+  // Build document.xml — render text with annotations
+  const commentAnnos = annotations.filter(a => a.type === 'comment');
+  const deletionAnnos = annotations.filter(a => a.type === 'deletion');
+  const additionAnnos = annotations.filter(a => a.type === 'addition');
+
+  // Build annotated paragraphs
+  let bodyXml = '';
+  const lines = text.split('\n');
+  let charIdx = 0;
+
+  // Pre-index: map annotation id → index in commentAnnos / global annotations
+  const commentIdxMap = {};
+  commentAnnos.forEach((a, i) => { commentIdxMap[a.id] = i; });
+  const globalIdxMap = {};
+  annotations.forEach((a, i) => { globalIdxMap[a.id] = i; });
+
+  for (const line of lines) {
+    const lineLen = line.length + 1; // +1 for newline
+
+    // Find annotations that overlap with this line
+    const lineAnnos = [];
+    for (const a of annotations) {
+      const aEnd = a.index + a.length;
+      if (!(aEnd <= charIdx || a.index >= charIdx + lineLen)) {
+        const start = Math.max(0, a.index - charIdx);
+        const end = Math.min(line.length, aEnd - charIdx);
+        if (end > start) {
+          lineAnnos.push({ ...a, localStart: start, localEnd: end });
+        }
+      }
+    }
+
+    if (lineAnnos.length === 0) {
+      bodyXml += `  <w:p><w:r><w:t xml:space="preserve">${escXml(line)}</w:t></w:r></w:p>\n`;
+    } else {
+      lineAnnos.sort((a, b) => a.localStart - b.localStart);
+      let pos = 0;
+      bodyXml += `  <w:p>`;
+      for (const a of lineAnnos) {
+        if (a.localStart > pos) {
+          bodyXml += `<w:r><w:t xml:space="preserve">${escXml(line.slice(pos, a.localStart))}</w:t></w:r>`;
+        }
+        const segText = escXml(line.slice(a.localStart, a.localEnd));
+        if (a.type === 'comment') {
+          const cid = commentIdxMap[a.id];  // Use ID map instead of indexOf
+          bodyXml += `<w:r><w:rPr><w:highlight w:val="yellow"/><w:commentReference w:id="${cid}"/></w:rPr><w:t xml:space="preserve">${segText}</w:t></w:r>`;
+        } else if (a.type === 'deletion') {
+          const did = globalIdxMap[a.id];
+          bodyXml += `<w:del w:id="${did}" w:author="合同审核工具" w:date="${new Date().toISOString()}"><w:r><w:rPr><w:strike/><w:color w:val="FF0000"/></w:rPr><w:delText xml:space="preserve">${segText}</w:delText></w:r></w:del>`;
+        } else if (a.type === 'addition') {
+          const aid = globalIdxMap[a.id];
+          bodyXml += `<w:ins w:id="${aid}" w:author="合同审核工具" w:date="${new Date().toISOString()}"><w:r><w:rPr><w:u w:val="single"/><w:color w:val="008000"/></w:rPr><w:t xml:space="preserve">${segText}</w:t></w:r></w:ins>`;
+        }
+        pos = a.localEnd;
+      }
+      if (pos < line.length) {
+        bodyXml += `<w:r><w:t xml:space="preserve">${escXml(line.slice(pos))}</w:t></w:r>`;
+      }
+      bodyXml += `</w:p>\n`;
+    }
+    charIdx += lineLen;
+  }
+
+  const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+${bodyXml}  </w:body>
+</w:document>`;
+  zip.file('word/document.xml', docXml);
+
+  // Build comments.xml
+  if (commentAnnos.length > 0) {
+    zip.file('word/comments.xml', buildCommentsXml(commentAnnos));
+  }
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = (currentFile?.name || 'contract').replace(/\.\w+$/, '') + '_审核标注.docx';
+  a.click(); URL.revokeObjectURL(url);
+
+  const parts = [];
+  if (commentAnnos.length) parts.push(`${commentAnnos.length}条批注`);
+  if (deletionAnnos.length) parts.push(`${deletionAnnos.length}处删除`);
+  if (additionAnnos.length) parts.push(`${additionAnnos.length}处新增`);
+  showToast(`已导出 Word 文档（${parts.join('、')}）`, 'success');
+}
+
+function escXml(s) {
+  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function resetAudit() {
+  currentFile = null;
+  extractedText = '';
+  originalDocxBlob = null;
+  auditResult = null;
+  document.getElementById('dropZone').classList.remove('disabled');
+  document.getElementById('fileList').innerHTML = '';
+  document.getElementById('editorSection').style.display = 'none';
+  document.getElementById('actionsBar').style.display = 'none';
+  document.getElementById('auditCost').textContent = '';
+  // Clear Quill content but keep the editor instance for reuse
+  if (quillEditor) {
+    quillEditor.setText('');
+  }
+  annotations = [];
+  trackChangesOn = false;
+  const btn = document.getElementById('btnTrackChanges');
+  const badge = document.getElementById('trackBadge');
+  if (btn) { btn.style.background = 'var(--surface)'; btn.style.color = 'var(--text-secondary)'; btn.style.borderColor = 'var(--border)'; btn.textContent = '📝 修订模式'; }
+  if (badge) badge.style.display = 'none';
+  renderAnnotationPanel();
+  renderEmpty();
+}
+
+// ============================================================
+// CHAT
+// ============================================================
+const chatToggle = document.getElementById('chatToggle');
+const chatPanel = document.getElementById('chatPanel');
+const chatMessages = document.getElementById('chatMessages');
+const chatInput = document.getElementById('chatInput');
+
+chatToggle.addEventListener('click', () => {
+  chatPanel.classList.toggle('open');
+  chatToggle.classList.toggle('active');
+  if (chatPanel.classList.contains('open')) chatInput.focus();
+});
+
+document.getElementById('btnChatClose').addEventListener('click', () => {
+  chatPanel.classList.remove('open');
+  chatToggle.classList.remove('active');
+});
+
+async function sendChat() {
+  const question = chatInput.value.trim();
+  if (!question) return;
+
+  chatInput.value = '';
+  addChatMsg('user', question);
+
+  const apiKey = localStorage.getItem('deepseek_api_key');
+  if (!apiKey) {
+    addChatMsg('system', '请先在 API 配置中设置 DeepSeek API Key');
+    return;
+  }
+
+  if (!extractedText && !auditResult) {
+    addChatMsg('system', '请先上传合同文件');
+    return;
+  }
+
+  addChatMsg('system', '思考中...');
+
+  try {
+    // Build context
+    let context = '';
+    if (extractedText) {
+      context += `合同内容摘要：${extractedText.slice(0, 2000)}\n\n`;
+    }
+    if (auditResult?.ruleResults) {
+      const issues = auditResult.ruleResults.filter(r => r.status !== 'PASS');
+      if (issues.length) {
+        context += `已知审核问题：\n${issues.map(r => `- ${r.item}: ${r.detail||''}`).join('\n')}\n\n`;
+      }
+    }
+
+    // Check if user is asking about civil code
+    const civilKeywords = ['民法典', '法条', '法律依据', '规定', '条款依据'];
+    const needCivilCode = civilKeywords.some(k => question.includes(k));
+
+    let civilContext = '';
+    if (needCivilCode && window.CivilCodeBrowser && window.CIVIL_CODE_ARTICLES) {
+      const candidates = CivilCodeBrowser.getConsultationCandidates(window.CIVIL_CODE_ARTICLES, question, 8);
+      if (candidates.length) {
+        civilContext = `\n相关民法典条文：\n${candidates.map((a,i) => `${i+1}. ${a.articleNo} - ${a.text.slice(0,120)}`).join('\n')}\n`;
+      }
+    }
+
+    const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: localStorage.getItem('ai_model') || 'deepseek-chat',
+        messages: [
+          { role: 'system', content: `你是合同审核助手。回答要简洁、准确。${civilContext ? '用户询问法律依据，以下候选条文仅供参考，请只引用其中真实相关的：' + civilContext : ''}` },
+          { role: 'user', content: context + '\n问题：' + question }
+        ],
+        temperature: 0.3,
+        max_tokens: 1500
+      }),
+      signal: timeout(30000)
+    });
+
+    // Remove "thinking" message
+    const thinkingMsg = chatMessages.querySelector('.chat-msg.system:last-child');
+    if (thinkingMsg && thinkingMsg.textContent === '思考中...') thinkingMsg.remove();
+
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    const data = await res.json();
+    addChatMsg('ai', data.choices[0].message.content);
+
+  } catch(e) {
+    const thinkingMsg = chatMessages.querySelector('.chat-msg.system:last-child');
+    if (thinkingMsg && thinkingMsg.textContent === '思考中...') thinkingMsg.remove();
+    addChatMsg('system', '请求失败: ' + e.message);
+  }
+}
+
+function addChatMsg(role, text) {
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + role;
+  div.textContent = text;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// ============================================================
+// RULE EDITOR
+// ============================================================
+let editingRuleId = null;
+
+function renderRuleEditor() {
+  const body = document.getElementById('ruleEditorBody');
+  const groups = {};
+  auditRules.forEach(r => {
+    if (!groups[r.group]) groups[r.group] = [];
+    groups[r.group].push(r);
+  });
+
+  let html = '';
+  for (const [groupName, rules] of Object.entries(groups)) {
+    const enabled = rules.filter(r => r.enabled !== false).length;
+    html += `<div class="rule-group" data-group="${escapeHtml(groupName)}">`;
+    html += `<div class="rule-group-header" onclick="this.parentElement.classList.toggle('collapsed')">
+      <span class="rule-group-name">📁 ${escapeHtml(groupName)} <span class="rule-group-count">${enabled}/${rules.length}</span></span>
+      <span class="rule-group-arrow">▼</span>
+    </div>`;
+    html += `<div class="rule-items">`;
+    rules.forEach(r => {
+      const sev = r.severity.toLowerCase();
+      html += `<div class="rule-item${editingRuleId === r.id ? ' selected' : ''}" data-id="${r.id}" onclick="selectRule('${r.id}')">
+        <div class="rule-item-toggle ${r.enabled !== false ? 'on' : ''}" onclick="event.stopPropagation();toggleRule('${r.id}')"></div>
+        <div class="rule-item-info">
+          <div class="rule-item-name">${escapeHtml(r.name)}</div>
+          <div class="rule-item-pattern">${escapeHtml((r.pattern||'').slice(0, 60))}</div>
+        </div>
+        <span class="rule-item-severity ${sev}">${r.severity}</span>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  html += `<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">`;
+  html += `<div style="font-size:12px;font-weight:600;margin-bottom:12px;">${editingRuleId ? '✏️ 编辑规则' : '📝 规则详情（点击左侧规则进行编辑）'}</div>`;
+
+  if (editingRuleId) {
+    const rule = auditRules.find(r => r.id === editingRuleId);
+    if (rule) {
+      html += `<div class="rule-edit-form">
+        <div class="form-group">
+          <label class="form-label">规则名称</label>
+          <input class="form-input" id="editRuleName" value="${escapeHtml(rule.name)}">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">匹配类型</label>
+            <select class="form-select" id="editRuleType">
+              <option value="regex" ${rule.type==='regex'?'selected':''}>正则表达式 (regex)</option>
+              <option value="text" ${rule.type==='text'?'selected':''}>文本包含 (text)</option>
+              <option value="existence" ${rule.type==='existence'?'selected':''}>必须存在 (existence)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">严重程度</label>
+            <select class="form-select" id="editRuleSeverity">
+              <option value="PASS" ${rule.severity==='PASS'?'selected':''}>PASS (通过)</option>
+              <option value="WARN" ${rule.severity==='WARN'?'selected':''}>WARN (警告)</option>
+              <option value="ERROR" ${rule.severity==='ERROR'?'selected':''}>ERROR (错误)</option>
+              <option value="INFO" ${rule.severity==='INFO'?'selected':''}>INFO (提示)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">匹配模式 / 关键词</label>
+          <input class="form-input" id="editRulePattern" value="${escapeHtml(rule.pattern||'')}" style="font-family:monospace;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">正则标志 (仅 regex)</label>
+          <input class="form-input" id="editRuleFlags" value="${escapeHtml(rule.flags||'')}" placeholder="i = 忽略大小写, g = 全局">
+        </div>
+        <div class="form-group">
+          <label class="form-label">未匹配时的建议文字</label>
+          <input class="form-input" id="editRuleSuggestion" value="${escapeHtml(rule.suggestion||'')}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">匹配成功时的描述（可选）</label>
+          <input class="form-input" id="editRuleHintPass" value="${escapeHtml(rule.hint_pass||'')}">
+        </div>
+        <div class="rule-test-area">
+          <label class="form-label">🧪 测试匹配</label>
+          <textarea class="form-textarea" id="ruleTestInput" placeholder="输入测试文本...">${extractedText ? extractedText.slice(0, 500) : ''}</textarea>
+          <button class="btn btn-secondary btn-sm" style="margin-top:6px;" onclick="testRule()">▶ 测试</button>
+          <div id="ruleTestResult"></div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="saveRuleEdit()">💾 保存修改</button>
+          <button class="btn btn-secondary btn-sm" style="color:var(--error);" onclick="deleteRule('${rule.id}')">🗑 删除</button>
+          <button class="btn btn-secondary btn-sm" onclick="duplicateRule('${rule.id}')">📋 复制</button>
+        </div>
+      </div>`;
+    }
+  } else {
+    html += `<div class="rule-editor-empty">点击左侧规则查看和编辑详情<br>或点击「新增规则」创建自定义规则</div>`;
+  }
+
+  html += `</div>`;
+  body.innerHTML = html;
+}
+
+function selectRule(id) {
+  editingRuleId = id;
+  renderRuleEditor();
+}
+
+function toggleRule(id) {
+  const rule = auditRules.find(r => r.id === id);
+  if (rule) {
+    rule.enabled = rule.enabled === false ? true : false;
+    renderRuleEditor();
+  }
+}
+
+function saveRuleEdit() {
+  if (!editingRuleId) return;
+  const rule = auditRules.find(r => r.id === editingRuleId);
+  if (!rule) return;
+
+  rule.name = document.getElementById('editRuleName')?.value || rule.name;
+  rule.type = document.getElementById('editRuleType')?.value || rule.type;
+  rule.severity = document.getElementById('editRuleSeverity')?.value || rule.severity;
+  rule.pattern = document.getElementById('editRulePattern')?.value || rule.pattern;
+  rule.flags = document.getElementById('editRuleFlags')?.value || '';
+  rule.suggestion = document.getElementById('editRuleSuggestion')?.value || '';
+  rule.hint_pass = document.getElementById('editRuleHintPass')?.value || '';
+
+  saveRules(auditRules);
+  renderRuleEditor();
+}
+
+function deleteRule(id) {
+  if (!confirm('确定删除这条规则？')) return;
+  auditRules = auditRules.filter(r => r.id !== id);
+  editingRuleId = null;
+  saveRules(auditRules);
+  renderRuleEditor();
+}
+
+function duplicateRule(id) {
+  const rule = auditRules.find(r => r.id === id);
+  if (!rule) return;
+  const newRule = JSON.parse(JSON.stringify(rule));
+  newRule.id = 'r' + Date.now();
+  newRule.name = rule.name + ' (副本)';
+  auditRules.push(newRule);
+  editingRuleId = newRule.id;
+  saveRules(auditRules);
+  renderRuleEditor();
+}
+
+function testRule() {
+  if (!editingRuleId) return;
+  const rule = auditRules.find(r => r.id === editingRuleId);
+  if (!rule) return;
+
+  const testText = document.getElementById('ruleTestInput')?.value || '';
+  const resultDiv = document.getElementById('ruleTestResult');
+  if (!resultDiv) return;
+
+  let matched = false;
+  let detail = '';
+  try {
+    if (rule.type === 'regex') {
+      const re = new RegExp(rule.pattern, rule.flags || '');
+      const m = re.exec(testText);
+      if (m) { matched = true; detail = '匹配到: ' + (m[1] || m[0]); }
+    } else {
+      const escaped = rule.pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(escaped, rule.flags || '');
+      if (re.test(testText)) { matched = true; detail = '找到关键词: ' + rule.pattern; }
+    }
+  } catch(e) {
+    detail = '正则错误: ' + e.message;
+  }
+
+  resultDiv.className = 'rule-test-result ' + (matched ? 'match' : 'no-match');
+  resultDiv.textContent = matched ? '✅ 匹配成功 — ' + detail : '❌ 未匹配 — ' + (detail || '模式未在测试文本中找到');
+}
+
+// Rule editor panel controls
+document.getElementById('btnRules').addEventListener('click', () => {
+  document.getElementById('ruleEditorOverlay').classList.add('open');
+  editingRuleId = null;
+  renderRuleEditor();
+});
+
+document.getElementById('btnRuleEditorClose').addEventListener('click', () => {
+  document.getElementById('ruleEditorOverlay').classList.remove('open');
+});
+
+document.getElementById('ruleEditorOverlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) {
+    document.getElementById('ruleEditorOverlay').classList.remove('open');
+  }
+});
+
+document.getElementById('btnRuleAdd').addEventListener('click', () => {
+  const newRule = {
+    id: 'r' + Date.now(),
+    group: '自定义',
+    name: '新规则',
+    type: 'text',
+    pattern: '',
+    flags: 'i',
+    severity: 'WARN',
+    suggestion: '请检查此项',
+    hint_pass: '已匹配',
+    enabled: true
+  };
+  auditRules.push(newRule);
+  editingRuleId = newRule.id;
+  saveRules(auditRules);
+  renderRuleEditor();
+});
+
+document.getElementById('btnRuleSave').addEventListener('click', () => {
+  if (editingRuleId) saveRuleEdit();
+  saveRules(auditRules);
+  showToast('规则已保存', 'success');
+});
+
+document.getElementById('btnRuleReset').addEventListener('click', () => {
+  if (!confirm('确定恢复为默认规则？当前自定义规则将丢失。')) return;
+  auditRules = JSON.parse(JSON.stringify(DEFAULT_RULES));
+  editingRuleId = null;
+  saveRules(auditRules);
+  renderRuleEditor();
+  showToast('已恢复默认规则', 'success');
+});
+
+document.getElementById('btnRuleExport').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(auditRules, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'audit_rules_export.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('规则已导出', 'success');
+});
+
+document.getElementById('btnRuleImport').addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = async (e) => {
+    try {
+      const text = await e.target.files[0].text();
+      const imported = JSON.parse(text);
+      if (!Array.isArray(imported)) throw new Error('格式错误');
+      auditRules = imported;
+      editingRuleId = null;
+      saveRules(auditRules);
+      renderRuleEditor();
+      showToast(`已导入 ${imported.length} 条规则`, 'success');
+    } catch(err) {
+      showToast('导入失败: ' + err.message, 'error');
+    }
+  };
+  input.click();
+});
+
+// ============================================================
+// CONFIG PANEL
+// ============================================================
+document.getElementById('btnConfig').addEventListener('click', () => {
+  document.getElementById('configOverlay').classList.add('open');
+  // Load saved values
+  document.getElementById('apiKey').value = localStorage.getItem('deepseek_api_key') || '';
+  document.getElementById('aiModel').value = localStorage.getItem('ai_model') || 'deepseek-chat';
+  document.getElementById('auditFocus').value = localStorage.getItem('audit_focus') || '';
+  document.getElementById('backendUrl').value = localStorage.getItem('backend_url') || API;
+});
+
+document.getElementById('btnConfigClose').addEventListener('click', () => {
+  document.getElementById('configOverlay').classList.remove('open');
+});
+
+document.getElementById('configOverlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) {
+    document.getElementById('configOverlay').classList.remove('open');
+  }
+});
+
+document.getElementById('btnConfigSave').addEventListener('click', () => {
+  localStorage.setItem('deepseek_api_key', document.getElementById('apiKey').value);
+  localStorage.setItem('ai_model', document.getElementById('aiModel').value);
+  localStorage.setItem('audit_focus', document.getElementById('auditFocus').value);
+  localStorage.setItem('backend_url', document.getElementById('backendUrl').value);
+  document.getElementById('configOverlay').classList.remove('open');
+  showToast('配置已保存', 'success');
+  checkHealth();
+});
+
+// ============================================================
+// UPLOAD HANDLERS
+// ============================================================
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('click', () => {
+  if (!dropZone.classList.contains('disabled')) fileInput.click();
+});
+dropZone.addEventListener('dragover', e => { e.preventDefault(); if (!dropZone.classList.contains('disabled')) dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  if (!dropZone.classList.contains('disabled') && e.dataTransfer.files.length) {
+    runAudit([...e.dataTransfer.files]);
+  }
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) runAudit([...fileInput.files]);
+  fileInput.value = '';
+});
+
+// AI polish button
+document.getElementById('btnAiPolish').addEventListener('click', async () => {
+  if (!quillEditor) return;
+  const selection = quillEditor.getSelection();
+  if (!selection || selection.length === 0) {
+    showToast('请先选中要优化的段落', 'info');
+    return;
+  }
+
+  const selectedText = quillEditor.getText(selection.index, selection.length);
+  const apiKey = localStorage.getItem('deepseek_api_key');
+  if (!apiKey) { showToast('请先配置 API Key', 'error'); return; }
+
+  showToast('AI 优化中...', 'info');
+  try {
+    const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: localStorage.getItem('ai_model') || 'deepseek-chat',
+        messages: [
+          { role: 'system', content: '你是合同条款优化助手。优化用户选中的合同段落，使其更清晰、严谨。只返回优化后的文本。' },
+          { role: 'user', content: '优化以下合同条款：\n' + selectedText }
+        ],
+        temperature: 0.3, max_tokens: 2000
+      }),
+      signal: timeout(20000)
+    });
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    const data = await res.json();
+    const polished = data.choices[0].message.content.trim();
+
+    if (confirm('AI 优化结果：\n\n' + polished + '\n\n是否替换原文？')) {
+      quillEditor.deleteText(selection.index, selection.length);
+      quillEditor.insertText(selection.index, polished);
+      quillEditor.setSelection(selection.index, polished.length);
+      showToast('已替换', 'success');
+    }
+  } catch(e) {
+    showToast('AI 优化失败: ' + e.message, 'error');
+  }
+});
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded', async () => {
+  renderEmpty();
+  await checkHealth();
+  // Keep checking
+  setInterval(checkHealth, 30000);
+
+  // Keyboard shortcut for rule editor
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key === 'r') {
+      e.preventDefault();
+      document.getElementById('ruleEditorOverlay').classList.toggle('open');
+      if (document.getElementById('ruleEditorOverlay').classList.contains('open')) {
+        editingRuleId = null;
+        renderRuleEditor();
+      }
+    }
+    if (e.key === 'Escape') {
+      document.getElementById('ruleEditorOverlay').classList.remove('open');
+      document.getElementById('configOverlay').classList.remove('open');
+    }
+  });
+});
+</script>
+</body>
+</html>
